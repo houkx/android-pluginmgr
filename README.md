@@ -55,14 +55,15 @@ dynamic load uninstalled apk<br>
   
 关于作者：<br>
  email: 1084940623@qq.com <br>
- blog: http://blog.csdn.net/hkxxx <br
-许可
+ blog: http://blog.csdn.net/hkxxx <br>
+ 
+许可<br>
 
-**本项目采用 Apache Licence 2.0 授权协议:
-Apache Licence是著名的非盈利开源组织Apache采用的协议。该协议和BSD类似，同样鼓励代码共享和尊重原作者的著作权，同样允许代码修改，再发布（作为开源或商业软件）<a href="http://www.oschina.net/question/12_2828">更多...</a>
-Copyright (c) 2014, KJFrameForAndroid Open Source Project, Zhang Tao.
+**本项目采用 Apache Licence 2.0 授权协议:<br>
+Apache Licence是著名的非盈利开源组织Apache采用的协议。该协议和BSD类似，同样鼓励代码共享和尊重原作者的著作权，同样允许代码修改<br>，再发布（作为开源或商业软件）<a href="http://www.oschina.net/question/12_2828">更多...</a><br>
+Copyright (c) 2014, KJFrameForAndroid Open Source Project, Zhang Tao.<br>
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the<br> License. You may obtain a copy of the License at<br>
 
-   http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+   http://www.apache.org/licenses/LICENSE-2.0<br>
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS<br> IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific<br> language governing permissions and limitations under the License.<br>
