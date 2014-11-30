@@ -53,4 +53,6 @@ dynamic load uninstalled apk<br>
   2、暂不支持插件的service, 未来将支持切换时间运行的service<br>
   3、不支持 activity 的 launch mode<br>
   
-
+关于作者：<br>
+ email: 1084940623@qq.com <br>
+ blog: http://blog.csdn.net/hkxxx
