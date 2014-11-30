@@ -15,8 +15,8 @@ dynamic load uninstalled apk<br>
 然后，在您App的 AndroidManifest.xml 文件中做两件事：<br>
 1、添加读写SD卡的权限: 
    
-    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" /> <br>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />  <br>
+    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" /> 
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />  
     
 2、注册一个Activity 
  
