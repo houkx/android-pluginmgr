@@ -1,3 +1,4 @@
+<pre>
 android-pluginmgr
 dynamic load uninstalled apk
 动态加载未安装APK
@@ -50,3 +51,4 @@ dynamic load uninstalled apk
   2、暂不支持插件的service, 未来将支持切换时间运行的service
   3、不支持 activity 的 launch mode
   
+</pre>
