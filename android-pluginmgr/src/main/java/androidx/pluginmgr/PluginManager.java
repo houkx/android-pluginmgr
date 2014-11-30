@@ -55,18 +55,29 @@ public class PluginManager implements FileFilter {
 	static PluginManager getInstance() {
 		return instance;
 	}
-
-	public void startActivity(Context fromActivity,Intent intent) {
+	
+	public void startActivity(Context context, Intent intent) {
+		performStartActivity(context, intent);
+		context.startActivity(intent);
+	}
+	
+	public void startActivityForResult(Activity activity, Intent intent,int requestCode) {
+		performStartActivity(context, intent);
+		activity.startActivityForResult(intent,requestCode);
+	}
+	
+	private void performStartActivity(Context context, Intent intent) {
 		checkInit();
-		
+
 		String plugIdOrPkg;
 		String actName;
 		ComponentName origComp = intent.getComponent();
 		if (origComp != null) {
 			plugIdOrPkg = origComp.getPackageName();
 			actName = origComp.getClassName();
-		} else{
-			throw new IllegalArgumentException("plug intent must set the ComponentName!");
+		} else {
+			throw new IllegalArgumentException(
+					"plug intent must set the ComponentName!");
 		}
 		PlugInfo plug = null;
 		plug = getPluginByPackageName(plugIdOrPkg);
@@ -79,11 +90,11 @@ public class PluginManager implements FileFilter {
 		}
 		String className = frameworkClassLoader.newActivityClassName(
 				plug.getId(), actName);
-		ComponentName comp = new ComponentName(fromActivity, className);
+		ComponentName comp = new ComponentName(context, className);
 		intent.setAction(null);
 		intent.setComponent(comp);
-		fromActivity.startActivity(intent);
 	}
+	
 
 	private final Map<String, PlugInfo> pluginIdToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
 	private final Map<String, PlugInfo> pluginPkgToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
