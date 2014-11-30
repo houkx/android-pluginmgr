@@ -1,4 +1,4 @@
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
 import org.xmlpull.v1.XmlPullParser;
 
@@ -19,7 +19,7 @@ import android.widget.LinearLayout;
  * @author HouKangxi
  *
  */
-public class LayoutInflaterWrapper extends LayoutInflater {
+class LayoutInflaterWrapper extends LayoutInflater {
 	private static final String tag = "LayoutInflaterWrapper";
 	private LayoutInflater target;
 	private final Class<?> layoutClass;
@@ -64,9 +64,9 @@ public class LayoutInflaterWrapper extends LayoutInflater {
 		target.setFactory(factory);
 	}
 
-//	public void setFactory2(Factory2 factory) {
-//		target.setFactory2(factory);
-//	}
+	// public void setFactory2(Factory2 factory) {
+	// target.setFactory2(factory);
+	// }
 
 	@Override
 	public Filter getFilter() {

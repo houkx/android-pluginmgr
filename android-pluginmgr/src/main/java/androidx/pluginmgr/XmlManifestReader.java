@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *	 http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,16 +13,193 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
+import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
+import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
-import android.content.res.XmlResourceParser;
 import android.util.TypedValue;
+
+/**
+ * 
+ * Read xml document from Android's binary xml file.
+ */
+class XmlManifestReader {
+	private static final String DEFAULT_XML = "AndroidManifest.xml";
+
+	private XmlManifestReader() {
+	}
+
+	public static String getManifestXMLFromAPK(String apkPath) {
+		ZipFile file = null;
+		StringBuilder xmlSb = new StringBuilder(100);
+		try {
+			File apkFile = new File(apkPath);
+			file = new ZipFile(apkFile, ZipFile.OPEN_READ);
+			ZipEntry entry = file.getEntry(DEFAULT_XML);
+
+			XmlResourceParser parser = new XmlResourceParser();
+			parser.open(file.getInputStream(entry));
+
+			StringBuilder sb = new StringBuilder(10);
+			final String indentStep = "	";
+
+			int type;
+			while ((type = parser.next()) != XmlPullParser.END_DOCUMENT) {
+				switch (type) {
+				case XmlPullParser.START_DOCUMENT: {
+					log(xmlSb, "<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+					break;
+				}
+				case XmlPullParser.START_TAG: {
+					log(false, xmlSb, "%s<%s%s", sb,
+							getNamespacePrefix(parser.getPrefix()),
+							parser.getName());
+					sb.append(indentStep);
+
+					int namespaceCountBefore = parser.getNamespaceCount(parser
+							.getDepth() - 1);
+					int namespaceCount = parser.getNamespaceCount(parser
+							.getDepth());
+
+					for (int i = namespaceCountBefore; i != namespaceCount; ++i) {
+						log(xmlSb, "%sxmlns:%s=\"%s\"",
+								i == namespaceCountBefore ? "  " : sb,
+								parser.getNamespacePrefix(i),
+								parser.getNamespaceUri(i));
+					}
+
+					for (int i = 0, size = parser.getAttributeCount(); i != size; ++i) {
+						log(false,
+								xmlSb,
+								"%s%s%s=\"%s\"",
+								" ",
+								getNamespacePrefix(parser.getAttributePrefix(i)),
+								parser.getAttributeName(i),
+								getAttributeValue(parser, i));
+					}
+					// log("%s>",sb);
+					log(xmlSb, ">");
+					break;
+				}
+				case XmlPullParser.END_TAG: {
+					sb.setLength(sb.length() - indentStep.length());
+					log(xmlSb, "%s</%s%s>", sb,
+							getNamespacePrefix(parser.getPrefix()),
+							parser.getName());
+					break;
+				}
+				case XmlPullParser.TEXT: {
+					log(xmlSb, "%s%s", sb, parser.getText());
+					break;
+				}
+				}
+			}
+			parser.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (file != null) {
+				try {
+					file.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return xmlSb.toString();
+	}
+
+	private static String getNamespacePrefix(String prefix) {
+		if (prefix == null || prefix.length() == 0) {
+			return "";
+		}
+		return prefix + ":";
+	}
+
+	private static String getAttributeValue(XmlResourceParser parser, int index) {
+		int type = parser.getAttributeValueType(index);
+		int data = parser.getAttributeValueData(index);
+		if (type == TypedValue.TYPE_STRING) {
+			return parser.getAttributeValue(index);
+		}
+		if (type == TypedValue.TYPE_ATTRIBUTE) {
+			return String.format("?%s%08X", getPackage(data), data);
+		}
+		if (type == TypedValue.TYPE_REFERENCE) {
+			return String.format("@%s%08X", getPackage(data), data);
+		}
+		if (type == TypedValue.TYPE_FLOAT) {
+			return String.valueOf(Float.intBitsToFloat(data));
+		}
+		if (type == TypedValue.TYPE_INT_HEX) {
+			return String.format("0x%08X", data);
+		}
+		if (type == TypedValue.TYPE_INT_BOOLEAN) {
+			return data != 0 ? "true" : "false";
+		}
+		if (type == TypedValue.TYPE_DIMENSION) {
+			return Float.toString(complexToFloat(data))
+					+ DIMENSION_UNITS[data & TypedValue.COMPLEX_UNIT_MASK];
+		}
+		if (type == TypedValue.TYPE_FRACTION) {
+			return Float.toString(complexToFloat(data))
+					+ FRACTION_UNITS[data & TypedValue.COMPLEX_UNIT_MASK];
+		}
+		if (type >= TypedValue.TYPE_FIRST_COLOR_INT
+				&& type <= TypedValue.TYPE_LAST_COLOR_INT) {
+			return String.format("#%08X", data);
+		}
+		if (type >= TypedValue.TYPE_FIRST_INT
+				&& type <= TypedValue.TYPE_LAST_INT) {
+			return String.valueOf(data);
+		}
+		return String.format("<0x%X, type 0x%02X>", data, type);
+	}
+
+	private static String getPackage(int id) {
+		if (id >>> 24 == 1) {
+			return "android:";
+		}
+		return "";
+	}
+
+	private static void log(StringBuilder xmlSb, String format,
+			Object... arguments) {
+		log(true, xmlSb, format, arguments);
+	}
+
+	private static void log(boolean newLine, StringBuilder xmlSb,
+			String format, Object... arguments) {
+		// System.out.printf(format,arguments);
+		// if(newLine) System.out.println();
+		xmlSb.append(String.format(format, arguments));
+		if (newLine)
+			xmlSb.append("\n");
+	}
+
+	// ///////////////////////////////// ILLEGAL STUFF, DONT LOOK :)
+
+	private static float complexToFloat(int complex) {
+		return (float) (complex & 0xFFFFFF00) * RADIX_MULTS[(complex >> 4) & 3];
+	}
+
+	private static final float RADIX_MULTS[] = { 0.00390625F, 3.051758E-005F,
+			1.192093E-007F, 4.656613E-010F };
+	private static final String DIMENSION_UNITS[] = { "px", "dip", "sp", "pt",
+			"in", "mm", "", "" };
+	private static final String FRACTION_UNITS[] = { "%", "%p", "", "", "", "",
+			"", "" };
+
+}
 
 /**
  * @author Dmitry Skiba
@@ -38,9 +215,9 @@ import android.util.TypedValue;
  *         TODO: * check all methods in closed state
  * 
  */
-class AXmlResourceParser implements XmlResourceParser {
+class XmlResourceParser implements android.content.res.XmlResourceParser {
 
-	public AXmlResourceParser() {
+	public XmlResourceParser() {
 		resetEventInfo();
 	}
 
@@ -62,6 +239,16 @@ class AXmlResourceParser implements XmlResourceParser {
 		m_resourceIDs = null;
 		m_namespaces.reset();
 		resetEventInfo();
+	}
+
+	public static final void readCheckType(IntReader reader, int expectedType)
+			throws IOException {
+		int type = reader.readInt();
+		if (type != expectedType) {
+			throw new IOException("Expected chunk of type 0x"
+					+ Integer.toHexString(expectedType) + ", read 0x"
+					+ Integer.toHexString(type) + ".");
+		}
 	}
 
 	// ///////////////////////////////// iteration
@@ -466,235 +653,6 @@ class AXmlResourceParser implements XmlResourceParser {
 		throw new XmlPullParserException(E_NOT_SUPPORTED);
 	}
 
-	// /////////////////////////////////////////// implementation
-
-	/**
-	 * Namespace stack, holds prefix+uri pairs, as well as depth information.
-	 * All information is stored in one int[] array. Array consists of depth
-	 * frames: Data=DepthFrame*; DepthFrame=Count+[Prefix+Uri]*+Count;
-	 * Count='count of Prefix+Uri pairs'; Yes, count is stored twice, to enable
-	 * bottom-up traversal. increaseDepth adds depth frame, decreaseDepth
-	 * removes it. push/pop operations operate only in current depth frame.
-	 * decreaseDepth removes any remaining (not pop'ed) namespace pairs. findXXX
-	 * methods search all depth frames starting from the last namespace pair of
-	 * current depth frame. All functions that operate with int, use -1 as
-	 * 'invalid value'.
-	 * 
-	 * !! functions expect 'prefix'+'uri' pairs, not 'uri'+'prefix' !!
-	 * 
-	 */
-	private static final class NamespaceStack {
-		public NamespaceStack() {
-			m_data = new int[32];
-		}
-
-		public final void reset() {
-			m_dataLength = 0;
-			m_count = 0;
-			m_depth = 0;
-		}
-
-		@SuppressWarnings("unused")
-		public final int getTotalCount() {
-			return m_count;
-		}
-
-		public final int getCurrentCount() {
-			if (m_dataLength == 0) {
-				return 0;
-			}
-			int offset = m_dataLength - 1;
-			return m_data[offset];
-		}
-
-		public final int getAccumulatedCount(int depth) {
-			if (m_dataLength == 0 || depth < 0) {
-				return 0;
-			}
-			if (depth > m_depth) {
-				depth = m_depth;
-			}
-			int accumulatedCount = 0;
-			int offset = 0;
-			for (; depth != 0; --depth) {
-				int count = m_data[offset];
-				accumulatedCount += count;
-				offset += (2 + count * 2);
-			}
-			return accumulatedCount;
-		}
-
-		public final void push(int prefix, int uri) {
-			if (m_depth == 0) {
-				increaseDepth();
-			}
-			ensureDataCapacity(2);
-			int offset = m_dataLength - 1;
-			int count = m_data[offset];
-			m_data[offset - 1 - count * 2] = count + 1;
-			m_data[offset] = prefix;
-			m_data[offset + 1] = uri;
-			m_data[offset + 2] = count + 1;
-			m_dataLength += 2;
-			m_count += 1;
-		}
-
-		@SuppressWarnings("unused")
-		public final boolean pop(int prefix, int uri) {
-			if (m_dataLength == 0) {
-				return false;
-			}
-			int offset = m_dataLength - 1;
-			int count = m_data[offset];
-			for (int i = 0, o = offset - 2; i != count; ++i, o -= 2) {
-				if (m_data[o] != prefix || m_data[o + 1] != uri) {
-					continue;
-				}
-				count -= 1;
-				if (i == 0) {
-					m_data[o] = count;
-					o -= (1 + count * 2);
-					m_data[o] = count;
-				} else {
-					m_data[offset] = count;
-					offset -= (1 + 2 + count * 2);
-					m_data[offset] = count;
-					System.arraycopy(m_data, o + 2, m_data, o, m_dataLength - o);
-				}
-				m_dataLength -= 2;
-				m_count -= 1;
-				return true;
-			}
-			return false;
-		}
-
-		public final boolean pop() {
-			if (m_dataLength == 0) {
-				return false;
-			}
-			int offset = m_dataLength - 1;
-			int count = m_data[offset];
-			if (count == 0) {
-				return false;
-			}
-			count -= 1;
-			offset -= 2;
-			m_data[offset] = count;
-			offset -= (1 + count * 2);
-			m_data[offset] = count;
-			m_dataLength -= 2;
-			m_count -= 1;
-			return true;
-		}
-
-		public final int getPrefix(int index) {
-			return get(index, true);
-		}
-
-		public final int getUri(int index) {
-			return get(index, false);
-		}
-
-		public final int findPrefix(int uri) {
-			return find(uri, false);
-		}
-
-		@SuppressWarnings("unused")
-		public final int findUri(int prefix) {
-			return find(prefix, true);
-		}
-
-		public final int getDepth() {
-			return m_depth;
-		}
-
-		public final void increaseDepth() {
-			ensureDataCapacity(2);
-			int offset = m_dataLength;
-			m_data[offset] = 0;
-			m_data[offset + 1] = 0;
-			m_dataLength += 2;
-			m_depth += 1;
-		}
-
-		public final void decreaseDepth() {
-			if (m_dataLength == 0) {
-				return;
-			}
-			int offset = m_dataLength - 1;
-			int count = m_data[offset];
-			if ((offset - 1 - count * 2) == 0) {
-				return;
-			}
-			m_dataLength -= 2 + count * 2;
-			m_count -= count;
-			m_depth -= 1;
-		}
-
-		private void ensureDataCapacity(int capacity) {
-			int available = (m_data.length - m_dataLength);
-			if (available > capacity) {
-				return;
-			}
-			int newLength = (m_data.length + available) * 2;
-			int[] newData = new int[newLength];
-			System.arraycopy(m_data, 0, newData, 0, m_dataLength);
-			m_data = newData;
-		}
-
-		private final int find(int prefixOrUri, boolean prefix) {
-			if (m_dataLength == 0) {
-				return -1;
-			}
-			int offset = m_dataLength - 1;
-			for (int i = m_depth; i != 0; --i) {
-				int count = m_data[offset];
-				offset -= 2;
-				for (; count != 0; --count) {
-					if (prefix) {
-						if (m_data[offset] == prefixOrUri) {
-							return m_data[offset + 1];
-						}
-					} else {
-						if (m_data[offset + 1] == prefixOrUri) {
-							return m_data[offset];
-						}
-					}
-					offset -= 2;
-				}
-			}
-			return -1;
-		}
-
-		private final int get(int index, boolean prefix) {
-			if (m_dataLength == 0 || index < 0) {
-				return -1;
-			}
-			int offset = 0;
-			for (int i = m_depth; i != 0; --i) {
-				int count = m_data[offset];
-				if (index >= count) {
-					index -= count;
-					offset += (2 + count * 2);
-					continue;
-				}
-				offset += (1 + index * 2);
-				if (!prefix) {
-					offset += 1;
-				}
-				return m_data[offset];
-			}
-			return -1;
-		}
-
-		private int[] m_data;
-		private int m_dataLength;
-		private int m_count;
-		private int m_depth;
-	}
-
-	// ///////////////////////////////// package-visible
-
 	// final void fetchAttributes(int[] styleableIDs,TypedArray result) {
 	// result.resetIndices();
 	// if (m_attributes==null || m_resourceIDs==null) {
@@ -781,7 +739,7 @@ class AXmlResourceParser implements XmlResourceParser {
 	private final void doNext() throws IOException {
 		// Delayed initialization.
 		if (m_strings == null) {
-			ChunkUtil.readCheckType(m_reader, CHUNK_AXML_FILE);
+			readCheckType(m_reader, CHUNK_AXML_FILE);
 			/* chunkSize */m_reader.skipInt();
 			m_strings = StringBlock.read(m_reader);
 			m_namespaces.increaseDepth();
@@ -934,4 +892,583 @@ class AXmlResourceParser implements XmlResourceParser {
 			CHUNK_XML_END_NAMESPACE = 0x00100101,
 			CHUNK_XML_START_TAG = 0x00100102, CHUNK_XML_END_TAG = 0x00100103,
 			CHUNK_XML_TEXT = 0x00100104, CHUNK_XML_LAST = 0x00100104;
+
+}
+
+final class IntReader {
+
+	public IntReader() {
+	}
+
+	public IntReader(InputStream stream, boolean bigEndian) {
+		reset(stream, bigEndian);
+	}
+
+	public final void reset(InputStream stream, boolean bigEndian) {
+		m_stream = stream;
+		m_bigEndian = bigEndian;
+		m_position = 0;
+	}
+
+	public final void close() {
+		if (m_stream == null) {
+			return;
+		}
+		try {
+			m_stream.close();
+		} catch (IOException e) {
+		}
+		reset(null, false);
+	}
+
+	public final InputStream getStream() {
+		return m_stream;
+	}
+
+	public final boolean isBigEndian() {
+		return m_bigEndian;
+	}
+
+	public final void setBigEndian(boolean bigEndian) {
+		m_bigEndian = bigEndian;
+	}
+
+	public final int readByte() throws IOException {
+		return readInt(1);
+	}
+
+	public final int readShort() throws IOException {
+		return readInt(2);
+	}
+
+	public final int readInt() throws IOException {
+		return readInt(4);
+	}
+
+	public final int readInt(int length) throws IOException {
+		if (length < 0 || length > 4) {
+			throw new IllegalArgumentException();
+		}
+		int result = 0;
+		if (m_bigEndian) {
+			for (int i = (length - 1) * 8; i >= 0; i -= 8) {
+				int b = m_stream.read();
+				if (b == -1) {
+					throw new EOFException();
+				}
+				m_position += 1;
+				result |= (b << i);
+			}
+		} else {
+			length *= 8;
+			for (int i = 0; i != length; i += 8) {
+				int b = m_stream.read();
+				if (b == -1) {
+					throw new EOFException();
+				}
+				m_position += 1;
+				result |= (b << i);
+			}
+		}
+		return result;
+	}
+
+	public final int[] readIntArray(int length) throws IOException {
+		int[] array = new int[length];
+		readIntArray(array, 0, length);
+		return array;
+	}
+
+	public final void readIntArray(int[] array, int offset, int length)
+			throws IOException {
+		for (; length > 0; length -= 1) {
+			array[offset++] = readInt();
+		}
+	}
+
+	public final byte[] readByteArray(int length) throws IOException {
+		byte[] array = new byte[length];
+		int read = m_stream.read(array);
+		m_position += read;
+		if (read != length) {
+			throw new EOFException();
+		}
+		return array;
+	}
+
+	public final void skip(int bytes) throws IOException {
+		if (bytes <= 0) {
+			return;
+		}
+		long skipped = m_stream.skip(bytes);
+		m_position += skipped;
+		if (skipped != bytes) {
+			throw new EOFException();
+		}
+	}
+
+	public final void skipInt() throws IOException {
+		skip(4);
+	}
+
+	public final int available() throws IOException {
+		return m_stream.available();
+	}
+
+	public final int getPosition() {
+		return m_position;
+	}
+
+	// ///////////////////////////////// data
+
+	private InputStream m_stream;
+	private boolean m_bigEndian;
+	private int m_position;
+}
+
+// /////////////////////////////////////////// implementation
+
+/**
+ * Namespace stack, holds prefix+uri pairs, as well as depth information. All
+ * information is stored in one int[] array. Array consists of depth frames:
+ * Data=DepthFrame*; DepthFrame=Count+[Prefix+Uri]*+Count; Count='count of
+ * Prefix+Uri pairs'; Yes, count is stored twice, to enable bottom-up traversal.
+ * increaseDepth adds depth frame, decreaseDepth removes it. push/pop operations
+ * operate only in current depth frame. decreaseDepth removes any remaining (not
+ * pop'ed) namespace pairs. findXXX methods search all depth frames starting
+ * from the last namespace pair of current depth frame. All functions that
+ * operate with int, use -1 as 'invalid value'.
+ * 
+ * !! functions expect 'prefix'+'uri' pairs, not 'uri'+'prefix' !!
+ * 
+ */
+final class NamespaceStack {
+	public NamespaceStack() {
+		m_data = new int[32];
+	}
+
+	public final void reset() {
+		m_dataLength = 0;
+		m_count = 0;
+		m_depth = 0;
+	}
+
+	@SuppressWarnings("unused")
+	public final int getTotalCount() {
+		return m_count;
+	}
+
+	public final int getCurrentCount() {
+		if (m_dataLength == 0) {
+			return 0;
+		}
+		int offset = m_dataLength - 1;
+		return m_data[offset];
+	}
+
+	public final int getAccumulatedCount(int depth) {
+		if (m_dataLength == 0 || depth < 0) {
+			return 0;
+		}
+		if (depth > m_depth) {
+			depth = m_depth;
+		}
+		int accumulatedCount = 0;
+		int offset = 0;
+		for (; depth != 0; --depth) {
+			int count = m_data[offset];
+			accumulatedCount += count;
+			offset += (2 + count * 2);
+		}
+		return accumulatedCount;
+	}
+
+	public final void push(int prefix, int uri) {
+		if (m_depth == 0) {
+			increaseDepth();
+		}
+		ensureDataCapacity(2);
+		int offset = m_dataLength - 1;
+		int count = m_data[offset];
+		m_data[offset - 1 - count * 2] = count + 1;
+		m_data[offset] = prefix;
+		m_data[offset + 1] = uri;
+		m_data[offset + 2] = count + 1;
+		m_dataLength += 2;
+		m_count += 1;
+	}
+
+	@SuppressWarnings("unused")
+	public final boolean pop(int prefix, int uri) {
+		if (m_dataLength == 0) {
+			return false;
+		}
+		int offset = m_dataLength - 1;
+		int count = m_data[offset];
+		for (int i = 0, o = offset - 2; i != count; ++i, o -= 2) {
+			if (m_data[o] != prefix || m_data[o + 1] != uri) {
+				continue;
+			}
+			count -= 1;
+			if (i == 0) {
+				m_data[o] = count;
+				o -= (1 + count * 2);
+				m_data[o] = count;
+			} else {
+				m_data[offset] = count;
+				offset -= (1 + 2 + count * 2);
+				m_data[offset] = count;
+				System.arraycopy(m_data, o + 2, m_data, o, m_dataLength - o);
+			}
+			m_dataLength -= 2;
+			m_count -= 1;
+			return true;
+		}
+		return false;
+	}
+
+	public final boolean pop() {
+		if (m_dataLength == 0) {
+			return false;
+		}
+		int offset = m_dataLength - 1;
+		int count = m_data[offset];
+		if (count == 0) {
+			return false;
+		}
+		count -= 1;
+		offset -= 2;
+		m_data[offset] = count;
+		offset -= (1 + count * 2);
+		m_data[offset] = count;
+		m_dataLength -= 2;
+		m_count -= 1;
+		return true;
+	}
+
+	public final int getPrefix(int index) {
+		return get(index, true);
+	}
+
+	public final int getUri(int index) {
+		return get(index, false);
+	}
+
+	public final int findPrefix(int uri) {
+		return find(uri, false);
+	}
+
+	@SuppressWarnings("unused")
+	public final int findUri(int prefix) {
+		return find(prefix, true);
+	}
+
+	public final int getDepth() {
+		return m_depth;
+	}
+
+	public final void increaseDepth() {
+		ensureDataCapacity(2);
+		int offset = m_dataLength;
+		m_data[offset] = 0;
+		m_data[offset + 1] = 0;
+		m_dataLength += 2;
+		m_depth += 1;
+	}
+
+	public final void decreaseDepth() {
+		if (m_dataLength == 0) {
+			return;
+		}
+		int offset = m_dataLength - 1;
+		int count = m_data[offset];
+		if ((offset - 1 - count * 2) == 0) {
+			return;
+		}
+		m_dataLength -= 2 + count * 2;
+		m_count -= count;
+		m_depth -= 1;
+	}
+
+	private void ensureDataCapacity(int capacity) {
+		int available = (m_data.length - m_dataLength);
+		if (available > capacity) {
+			return;
+		}
+		int newLength = (m_data.length + available) * 2;
+		int[] newData = new int[newLength];
+		System.arraycopy(m_data, 0, newData, 0, m_dataLength);
+		m_data = newData;
+	}
+
+	private final int find(int prefixOrUri, boolean prefix) {
+		if (m_dataLength == 0) {
+			return -1;
+		}
+		int offset = m_dataLength - 1;
+		for (int i = m_depth; i != 0; --i) {
+			int count = m_data[offset];
+			offset -= 2;
+			for (; count != 0; --count) {
+				if (prefix) {
+					if (m_data[offset] == prefixOrUri) {
+						return m_data[offset + 1];
+					}
+				} else {
+					if (m_data[offset + 1] == prefixOrUri) {
+						return m_data[offset];
+					}
+				}
+				offset -= 2;
+			}
+		}
+		return -1;
+	}
+
+	private final int get(int index, boolean prefix) {
+		if (m_dataLength == 0 || index < 0) {
+			return -1;
+		}
+		int offset = 0;
+		for (int i = m_depth; i != 0; --i) {
+			int count = m_data[offset];
+			if (index >= count) {
+				index -= count;
+				offset += (2 + count * 2);
+				continue;
+			}
+			offset += (1 + index * 2);
+			if (!prefix) {
+				offset += 1;
+			}
+			return m_data[offset];
+		}
+		return -1;
+	}
+
+	private int[] m_data;
+	private int m_dataLength;
+	private int m_count;
+	private int m_depth;
+}
+
+/**
+ * @author Dmitry Skiba
+ * 
+ *         Block of strings, used in binary xml and arsc.
+ * 
+ *         TODO: - implement get()
+ * 
+ */
+class StringBlock {
+
+	/**
+	 * Reads whole (including chunk type) string block from stream. Stream must
+	 * be at the chunk type.
+	 */
+	public static StringBlock read(IntReader reader) throws IOException {
+		XmlResourceParser.readCheckType(reader, CHUNK_TYPE);
+		int chunkSize = reader.readInt();
+		int stringCount = reader.readInt();
+		int styleOffsetCount = reader.readInt();
+		/* ? */reader.readInt();
+		int stringsOffset = reader.readInt();
+		int stylesOffset = reader.readInt();
+
+		StringBlock block = new StringBlock();
+		block.m_stringOffsets = reader.readIntArray(stringCount);
+		if (styleOffsetCount != 0) {
+			block.m_styleOffsets = reader.readIntArray(styleOffsetCount);
+		}
+		{
+			int size = ((stylesOffset == 0) ? chunkSize : stylesOffset)
+					- stringsOffset;
+			if ((size % 4) != 0) {
+				throw new IOException("String data size is not multiple of 4 ("
+						+ size + ").");
+			}
+			block.m_strings = reader.readIntArray(size / 4);
+		}
+		if (stylesOffset != 0) {
+			int size = (chunkSize - stylesOffset);
+			if ((size % 4) != 0) {
+				throw new IOException("Style data size is not multiple of 4 ("
+						+ size + ").");
+			}
+			block.m_styles = reader.readIntArray(size / 4);
+		}
+
+		return block;
+	}
+
+	/**
+	 * Returns number of strings in block.
+	 */
+	public int getCount() {
+		return m_stringOffsets != null ? m_stringOffsets.length : 0;
+	}
+
+	/**
+	 * Returns raw string (without any styling information) at specified index.
+	 */
+	public String getString(int index) {
+		if (index < 0 || m_stringOffsets == null
+				|| index >= m_stringOffsets.length) {
+			return null;
+		}
+		int offset = m_stringOffsets[index];
+		int length = getShort(m_strings, offset);
+		StringBuilder result = new StringBuilder(length);
+		for (; length != 0; length -= 1) {
+			offset += 2;
+			result.append((char) getShort(m_strings, offset));
+		}
+		return result.toString();
+	}
+
+	/**
+	 * Not yet implemented.
+	 * 
+	 * Returns string with style information (if any).
+	 */
+	public CharSequence get(int index) {
+		return getString(index);
+	}
+
+	/**
+	 * Returns string with style tags (html-like).
+	 */
+	public String getHTML(int index) {
+		String raw = getString(index);
+		if (raw == null) {
+			return raw;
+		}
+		int[] style = getStyle(index);
+		if (style == null) {
+			return raw;
+		}
+		StringBuilder html = new StringBuilder(raw.length() + 32);
+		int offset = 0;
+		while (true) {
+			int i = -1;
+			for (int j = 0; j != style.length; j += 3) {
+				if (style[j + 1] == -1) {
+					continue;
+				}
+				if (i == -1 || style[i + 1] > style[j + 1]) {
+					i = j;
+				}
+			}
+			int start = ((i != -1) ? style[i + 1] : raw.length());
+			for (int j = 0; j != style.length; j += 3) {
+				int end = style[j + 2];
+				if (end == -1 || end >= start) {
+					continue;
+				}
+				if (offset <= end) {
+					html.append(raw, offset, end + 1);
+					offset = end + 1;
+				}
+				style[j + 2] = -1;
+				html.append('<');
+				html.append('/');
+				html.append(getString(style[j]));
+				html.append('>');
+			}
+			if (offset < start) {
+				html.append(raw, offset, start);
+				offset = start;
+			}
+			if (i == -1) {
+				break;
+			}
+			html.append('<');
+			html.append(getString(style[i]));
+			html.append('>');
+			style[i + 1] = -1;
+		}
+		return html.toString();
+	}
+
+	/**
+	 * Finds index of the string. Returns -1 if the string was not found.
+	 */
+	public int find(String string) {
+		if (string == null) {
+			return -1;
+		}
+		for (int i = 0; i != m_stringOffsets.length; ++i) {
+			int offset = m_stringOffsets[i];
+			int length = getShort(m_strings, offset);
+			if (length != string.length()) {
+				continue;
+			}
+			int j = 0;
+			for (; j != length; ++j) {
+				offset += 2;
+				if (string.charAt(j) != getShort(m_strings, offset)) {
+					break;
+				}
+			}
+			if (j == length) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	// /////////////////////////////////////////// implementation
+
+	private StringBlock() {
+	}
+
+	/**
+	 * Returns style information - array of int triplets, where in each triplet:
+	 * * first int is index of tag name ('b','i', etc.) * second int is tag
+	 * start index in string * third int is tag end index in string
+	 */
+	private int[] getStyle(int index) {
+		if (m_styleOffsets == null || m_styles == null
+				|| index >= m_styleOffsets.length) {
+			return null;
+		}
+		int offset = m_styleOffsets[index] / 4;
+		int style[];
+		{
+			int count = 0;
+			for (int i = offset; i < m_styles.length; ++i) {
+				if (m_styles[i] == -1) {
+					break;
+				}
+				count += 1;
+			}
+			if (count == 0 || (count % 3) != 0) {
+				return null;
+			}
+			style = new int[count];
+		}
+		for (int i = offset, j = 0; i < m_styles.length;) {
+			if (m_styles[i] == -1) {
+				break;
+			}
+			style[j++] = m_styles[i++];
+		}
+		return style;
+	}
+
+	private static final int getShort(int[] array, int offset) {
+		int value = array[offset / 4];
+		if ((offset % 4) / 2 == 0) {
+			return (value & 0xFFFF);
+		} else {
+			return (value >>> 16);
+		}
+	}
+
+	private int[] m_stringOffsets;
+	private int[] m_strings;
+	private int[] m_styleOffsets;
+	private int[] m_styles;
+
+	private static final int CHUNK_TYPE = 0x001C0001;
 }

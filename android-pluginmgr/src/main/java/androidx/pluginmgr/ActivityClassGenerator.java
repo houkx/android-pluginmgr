@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
 import static java.lang.reflect.Modifier.FINAL;
 import static java.lang.reflect.Modifier.PRIVATE;
@@ -20,8 +20,8 @@ import android.content.res.Resources;
 import android.content.res.Resources.Theme;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import androidx.pluginmgr.ActivityOverider;
 
-import com.android.pluginmgr.ActivityOverider;
 import com.google.dexmaker.Code;
 import com.google.dexmaker.Comparison;
 import com.google.dexmaker.DexMaker;
@@ -37,7 +37,7 @@ import com.google.dexmaker.TypeId;
  * @author HouKangxi
  * 
  */
-public class ActivityClassGenerator {
+class ActivityClassGenerator {
 
 	public static void createActivityDex(String superClassName,
 			String targetClassName, File saveTo, String pluginId, String pkgName)
@@ -55,16 +55,17 @@ public class ActivityClassGenerator {
 	 * @param pkgName
 	 * @return
 	 */
-	public static <S,D extends S> byte[] createActivityDex(final String superClassName,
-			final String targetClassName, final String pluginId, String pkgName) {
+	public static <S, D extends S> byte[] createActivityDex(
+			final String superClassName, final String targetClassName,
+			final String pluginId, String pkgName) {
 
 		DexMaker dexMaker = new DexMaker();
 
-		TypeId<D> generatedType = TypeId.get('L'
-				+ targetClassName.replace('.', '/') + ';');
+		TypeId<D> generatedType = TypeId.get('L' + targetClassName.replace('.',
+				'/') + ';');
 
-		TypeId<S> superType = TypeId.get('L' + superClassName.replace('.', '/')
-				+ ';');
+		TypeId<S> superType = TypeId
+				.get('L' + superClassName.replace('.', '/') + ';');
 		// 声明类
 		dexMaker.declare(generatedType, "", PUBLIC | FINAL, superType);
 		// 定义字段 private static final String _pluginId = @param{pluginId};
@@ -104,8 +105,9 @@ public class ActivityClassGenerator {
 		return dex;
 	}
 
-	private static <S,D extends S> void declareField_pluginId(DexMaker dexMaker,
-			TypeId<D> generatedType, TypeId<S> superType, String pluginId) {
+	private static <S, D extends S> void declareField_pluginId(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType,
+			String pluginId) {
 		FieldId<D, String> _pluginId = generatedType.getField(TypeId.STRING,
 				"_pluginId");
 		dexMaker.declare(_pluginId, PRIVATE | STATIC | FINAL, pluginId);
@@ -133,8 +135,8 @@ public class ActivityClassGenerator {
 	// }
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private static <S,D extends S> void declareMethod_onCreate(DexMaker dexMaker,
-			TypeId<D> generatedType, TypeId<S> superType) {
+	private static <S, D extends S> void declareMethod_onCreate(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		// 声明 字段：
 		// private AssetManager asm;
 		// private Resources res;
@@ -229,9 +231,8 @@ public class ActivityClassGenerator {
 		methodCode.returnVoid();
 	}
 
-	
-	private static <S,D extends S> void declareMethod_getResources(DexMaker dexMaker,
-			TypeId<D> generatedType, TypeId<S> superType) {
+	private static <S, D extends S> void declareMethod_getResources(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		TypeId<Resources> Resources = TypeId.get(Resources.class);
 		MethodId<D, Resources> getResources = generatedType.getMethod(
 				Resources, "getResources");
@@ -245,17 +246,16 @@ public class ActivityClassGenerator {
 		//
 		Label localResIsNull = new Label();
 		code.compare(Comparison.NE, localResIsNull, localRes, nullV);
-		MethodId<S, Resources> superGetResources = superType.getMethod(Resources,
-				"getResources");
+		MethodId<S, Resources> superGetResources = superType.getMethod(
+				Resources, "getResources");
 		code.invokeSuper(superGetResources, localRes, localThis);
 		code.mark(localResIsNull);
 		//
 		code.returnValue(localRes);
 	}
 
-	
-	private static <S,D extends S> void declareMethod_getAssets(DexMaker dexMaker,
-			TypeId<D> generatedType, TypeId<S> superType) {
+	private static <S, D extends S> void declareMethod_getAssets(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
 		MethodId<D, AssetManager> getAssets = generatedType.getMethod(
 				AssetManager, "getAssets");
@@ -269,8 +269,8 @@ public class ActivityClassGenerator {
 		code.iget(res, localAsm, localThis);
 		Label localAsmIsNull = new Label();
 		code.compare(Comparison.NE, localAsmIsNull, localAsm, nullV);
-		MethodId<S, AssetManager> superGetAssetManager = superType.getMethod(AssetManager,
-				"getAssets");
+		MethodId<S, AssetManager> superGetAssetManager = superType.getMethod(
+				AssetManager, "getAssets");
 		code.invokeSuper(superGetAssetManager, localAsm, localThis);
 		code.mark(localAsmIsNull);
 		code.returnValue(localAsm);
@@ -293,9 +293,9 @@ public class ActivityClassGenerator {
 	 * @param generatedType
 	 * @param superType
 	 */
-	
-	private static <S,D extends S> void declareMethod_getTheme(DexMaker dexMaker,
-			TypeId<D> generatedType, TypeId<S> superType) {
+
+	private static <S, D extends S> void declareMethod_getTheme(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		TypeId<Theme> Theme = TypeId.get(Theme.class);
 		MethodId<D, Theme> getTheme = generatedType
 				.getMethod(Theme, "getTheme");
@@ -309,15 +309,15 @@ public class ActivityClassGenerator {
 		// codeBlock: if start
 		Label localThemeIsNull = new Label();
 		code.compare(Comparison.NE, localThemeIsNull, localTheme, nullV);
-		MethodId<S, Theme> superGetTheme = superType.getMethod(Theme, "getTheme");
+		MethodId<S, Theme> superGetTheme = superType.getMethod(Theme,
+				"getTheme");
 		code.invokeSuper(superGetTheme, localTheme, localThis);
 		code.mark(localThemeIsNull);
 		// codeBlock: if end
 		code.returnValue(localTheme);
 	}
 
-	
-	private static <S,D extends S> void declare_constructor(DexMaker dexMaker,
+	private static <S, D extends S> void declare_constructor(DexMaker dexMaker,
 			TypeId<D> generatedType, TypeId<S> superType) {
 		MethodId<D, Void> method = generatedType.getConstructor();
 		Code constructorCode = dexMaker.declare(method, PUBLIC);
@@ -327,8 +327,7 @@ public class ActivityClassGenerator {
 		constructorCode.returnVoid();// void 方法也必须显式的声明返回void
 	}
 
-	
-	private static <S,D extends S> void declareMethod_startActivityForResult(
+	private static <S, D extends S> void declareMethod_startActivityForResult(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		TypeId<Intent> intent = TypeId.get(Intent.class);
 		TypeId<Integer> requestCode = TypeId.INT;
@@ -379,9 +378,9 @@ public class ActivityClassGenerator {
 	 * @param generatedType
 	 * @param superType
 	 */
-	
-	private static <S,D extends S> void declareMethod_onBackPressed(DexMaker dexMaker,
-			TypeId<D> generatedType, TypeId<S> superType) {
+
+	private static <S, D extends S> void declareMethod_onBackPressed(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		TypeId<ActivityOverider> ActivityOverider = TypeId
 				.get(ActivityOverider.class);
 		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
@@ -403,17 +402,17 @@ public class ActivityClassGenerator {
 		Label localBool_isInvokeSuper = new Label();
 		methodCode.compare(Comparison.EQ, localBool_isInvokeSuper, localBool,
 				localFalse);
-		MethodId<S, Void> superMethod = superType
-				.getMethod(TypeId.VOID, "onBackPressed");
+		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID,
+				"onBackPressed");
 		methodCode.invokeSuper(superMethod, null, localThis);
 		methodCode.mark(localBool_isInvokeSuper);
 		// codeBlock: if end
 		methodCode.returnVoid();
 	}
 
-	
-	private static <S,D extends S> void declareLifeCyleMethod(DexMaker dexMaker,
-			TypeId<D> generatedType, TypeId<S> superType, String methodName) {
+	private static <S, D extends S> void declareLifeCyleMethod(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType,
+			String methodName) {
 		TypeId<ActivityOverider> ActivityOverider = TypeId
 				.get(ActivityOverider.class);
 		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
@@ -422,7 +421,8 @@ public class ActivityClassGenerator {
 		// locals
 		Local<D> localThis = methodCode.getThis(generatedType);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
-		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID, methodName);
+		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID,
+				methodName);
 		methodCode.invokeSuper(superMethod, null, localThis);
 
 		MethodId<ActivityOverider, Void> methodOveride = ActivityOverider

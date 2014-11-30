@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,17 +21,6 @@ import android.content.res.Resources;
  */
 public class PlugInfo {
 
-	// ================== FLAGS STARD ==================
-	// private static final String FLAGKEY = "NQPLUG#FLAGS";
-	/**
-	 * 按下back键时是否 finish Activity
-	 */
-	private static final int FLAG_FinishActivityOnbackPressed = 1;
-	/**
-	 * 是否调用父类的onBackPressed()方法
-	 */
-	private static final int FLAG_INVOKE_SUPER_ONBACKPRESSED = 2;
-	// ================== FLAGS END ==================
 	//
 	// ================== FLELDS ==================
 	private String id;
@@ -43,17 +32,29 @@ public class PlugInfo {
 	private List<ResolveInfo> receivers;
 	private List<ResolveInfo> providers;
 	//
-	private transient ClassLoader classLoader;
+	private transient PluginClassLoader classLoader;
 	private transient Application application;
 	private transient AssetManager assetManager;
 	private transient Resources resources;
+
 	//
-	private transient volatile String currentActivityClass;
+	// private transient volatile String currentActivityClass;
 
 	public String getPackageName() {
 		return packageInfo.packageName;
 	}
 
+	// ================== FLAGS STARD ==================
+	/**
+	 * 按下back键时是否 finish Activity
+	 */
+	private static final int FLAG_FinishActivityOnbackPressed = 1;
+	/**
+	 * 是否调用父类的onBackPressed()方法
+	 */
+	private static final int FLAG_INVOKE_SUPER_ONBACKPRESSED = 2;
+
+	// ================== FLAGS END ==================
 	/**
 	 * 按Back键时是否销毁Activity
 	 */
@@ -172,11 +173,11 @@ public class PlugInfo {
 		this.packageInfo = packageInfo;
 	}
 
-	public ClassLoader getClassLoader() {
+	public PluginClassLoader getClassLoader() {
 		return classLoader;
 	}
 
-	public void setClassLoader(ClassLoader classLoader) {
+	public void setClassLoader(PluginClassLoader classLoader) {
 		this.classLoader = classLoader;
 	}
 
@@ -204,13 +205,13 @@ public class PlugInfo {
 		this.resources = resources;
 	}
 
-	public String getCurrentActivityClass() {
-		return currentActivityClass;
-	}
-
-	public void setCurrentActivityClass(String currentActivityClass) {
-		this.currentActivityClass = currentActivityClass;
-	}
+	// public String getCurrentActivityClass() {
+	// return currentActivityClass;
+	// }
+	//
+	// public void setCurrentActivityClass(String currentActivityClass) {
+	// this.currentActivityClass = currentActivityClass;
+	// }
 
 	public List<ResolveInfo> getActivities() {
 		return activities;
@@ -274,7 +275,8 @@ public class PlugInfo {
 
 	@Override
 	public String toString() {
-		return super.toString() + "[ " + id + " ]";
+		return super.toString() + "[ id=" + id + ", pkg=" + getPackageName()
+				+ " ]";
 	}
 
 	private static synchronized int getFlags(ActivityInfo act) {

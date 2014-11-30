@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
 import java.io.File;
 
@@ -17,7 +17,7 @@ import android.util.Log;
  * @author HouKangxi
  *
  */
-public class PluginContextWrapper extends ContextWrapper {
+class PluginContextWrapper extends ContextWrapper {
 	private PlugInfo plugin;
 	private static final String tag = "PluginContextWrapper";
 

@@ -1,4 +1,4 @@
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -17,7 +17,7 @@ import java.nio.channels.ReadableByteChannel;
  * @author HouKangxi
  *
  */
-public class FileUtil {
+class FileUtil {
 
 	public static void writeToFile(byte[] data, File target) throws IOException {
 		FileOutputStream fo = null;

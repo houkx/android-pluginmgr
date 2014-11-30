@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
 import android.app.Activity;
 

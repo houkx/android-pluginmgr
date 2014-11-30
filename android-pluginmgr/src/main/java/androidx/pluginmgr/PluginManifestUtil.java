@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -20,11 +20,10 @@ import android.content.pm.ResolveInfo;
  * @author HouKangxi
  * 
  */
-class ManifestReader {
+class PluginManifestUtil {
 	static String setManifestInfo(Context context, String apkPath, PlugInfo info)
 			throws XmlPullParserException, IOException {
-		String manifestXML = AndroidManifestReader
-				.getManifestXMLFromAPK(apkPath);
+		String manifestXML = XmlManifestReader.getManifestXMLFromAPK(apkPath);
 		PackageInfo pkgInfo = context.getPackageManager()
 				.getPackageArchiveInfo(
 						apkPath,
@@ -65,7 +64,7 @@ class ManifestReader {
 				} else if ("receiver".equals(parser.getName())) {
 					addReceiver(info, namespaceAndroid, parser);
 				} else if ("service".equals(parser.getName())) {
-					// Not Support now
+					// TODO service Not Support now
 				}
 				break;
 			}
@@ -100,7 +99,7 @@ class ManifestReader {
 							"name");
 					act.filter.addCategory(category);
 				} else if ("data".equals(tag)) {
-					// TODO
+					// TODO parse data
 				}
 				break;
 			}
@@ -135,7 +134,7 @@ class ManifestReader {
 							"name");
 					receiver.filter.addCategory(category);
 				} else if ("data".equals(tag)) {
-					// TODO
+					// TODO parse data
 				}
 				break;
 			}

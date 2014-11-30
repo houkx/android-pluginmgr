@@ -4,7 +4,7 @@
 	<groupId>com.android</groupId>
 	<artifactId>pluginmgr</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>com.android.pluginmgr</name>
+	<name>androidx.pluginmgr</name>
 	<description>dynamic load uninstalled apk</description>
 	<dependencies>
 		<dependency>

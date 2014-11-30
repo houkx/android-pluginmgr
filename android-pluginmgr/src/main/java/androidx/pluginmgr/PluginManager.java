@@ -1,60 +1,101 @@
 /**
  * 
  */
-package com.android.pluginmgr;
+package androidx.pluginmgr;
 
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import android.app.Activity;
 import android.app.Application;
+import android.app.Service;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.util.Log;
 
 /**
- * 插件容器
+ * 插件管理器
  * 
  * @author HouKangxi
  */
-public class PluginContainer implements FileFilter {
-	private static final PluginContainer ins = new PluginContainer();
+public class PluginManager implements FileFilter {
+	private static final PluginManager instance = new PluginManager();
 
-	public static PluginContainer getInstance() {
-		return ins;
+	private PluginManager() {
 	}
 
-	private PluginContainer() {
+	public static PluginManager getInstance(Context context) {
+		if (instance.hasInit || context == null) {
+			return instance;
+		}
+		Context ctx = context;
+		if (context instanceof Activity) {
+			ctx = ((Activity) context).getApplication();
+		} else if (context instanceof Service) {
+			ctx = ((Service) context).getApplication();
+		} else if (context instanceof Application) {
+			ctx = (Application) context;
+		} else {
+			ctx = context.getApplicationContext();
+		}
+		synchronized (PluginManager.class) {
+			instance.init(ctx);
+		}
+		return instance;
 	}
 
-	// private final Map<String, PlugInfo> pluginPackageToInfoMap = new
-	// ConcurrentHashMap<String, PlugInfo>();
+	static PluginManager getInstance() {
+		return instance;
+	}
+
+	public void startActivity(Context fromActivity,Intent intent) {
+		checkInit();
+		
+		String plugIdOrPkg;
+		String actName;
+		ComponentName origComp = intent.getComponent();
+		if (origComp != null) {
+			plugIdOrPkg = origComp.getPackageName();
+			actName = origComp.getClassName();
+		} else{
+			throw new IllegalArgumentException("plug intent must set the ComponentName!");
+		}
+		PlugInfo plug = null;
+		plug = getPluginByPackageName(plugIdOrPkg);
+		if (plug == null) {
+			plug = getPluginById(plugIdOrPkg);
+		}
+		if (plug == null) {
+			throw new IllegalArgumentException("plug not found by:"
+					+ plugIdOrPkg);
+		}
+		String className = frameworkClassLoader.newActivityClassName(
+				plug.getId(), actName);
+		ComponentName comp = new ComponentName(fromActivity, className);
+		intent.setAction(null);
+		intent.setComponent(comp);
+		fromActivity.startActivity(intent);
+	}
+
 	private final Map<String, PlugInfo> pluginIdToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
-	private Application context;
-
+	private final Map<String, PlugInfo> pluginPkgToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
+	private Context context;
 	private String dexOutputPath;
-	private transient boolean hasInit = false;
-	/**
-	 * 当前的插件Id
-	 */
-	private transient volatile String currentPluginId;
+	private volatile boolean hasInit = false;
 	private File dexInternalStoragePath;
+	private FrameworkClassLoader frameworkClassLoader;
 	private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
+	private final String tag = "plugmgr";
 
-	public PlugInfo getCurrentPlugin() {
-		return getPluginById(currentPluginId);
-	}
-
-	public void setCurrentPlugin(PlugInfo currentPlugin) {
-		this.currentPluginId = currentPlugin == null ? null : currentPlugin
-				.getId();
-	}
-
-	public synchronized void init(Application ctx) {
-		hasInit = true;
+	private void init(Context ctx) {
 		context = ctx;
 		File optimizedDexPath = ctx.getDir("outdex", Context.MODE_PRIVATE);
 		if (!optimizedDexPath.exists()) {
@@ -66,19 +107,20 @@ public class PluginContainer implements FileFilter {
 		try {
 			Object mPackageInfo = ReflectionUtils.getFieldValue(ctx,
 					"mBase.mPackageInfo", true);
-			ClassLoader mClassLoader = ctx.getClassLoader();
-			FrameworkClassLoader cl = new FrameworkClassLoader(mClassLoader);
-			ReflectionUtils.setFieldValue(mPackageInfo, "mClassLoader", cl,
-					true);
+			frameworkClassLoader = new FrameworkClassLoader(
+					ctx.getClassLoader());
+			// set Application's classLoader to FrameworkClassLoader
+			ReflectionUtils.setFieldValue(mPackageInfo, "mClassLoader",
+					frameworkClassLoader, true);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		hasInit = true;
 	}
 
 	private void checkInit() {
 		if (!hasInit) {
-			throw new IllegalStateException(
-					"please call init(Context ctx) first!");
+			throw new IllegalStateException("PluginManager has not init!");
 		}
 	}
 
@@ -90,50 +132,93 @@ public class PluginContainer implements FileFilter {
 	}
 
 	public PlugInfo getPluginByPackageName(String packageName) {
-		for (PlugInfo pl : pluginIdToInfoMap.values()) {
-			if (pl.getPackageName().equals(packageName)) {
-				return pl;
-			}
-		}
-		return null;
+		return pluginPkgToInfoMap.get(packageName);
 	}
 
 	public Collection<PlugInfo> getPlugins() {
 		return pluginIdToInfoMap.values();
 	}
 
-	public void uninstallPlugin(String pluginId) {
+	public void uninstallPluginById(String pluginId) {
+		uninstallPlugin(pluginId, true);
+	}
+
+	public void uninstallPluginByPkg(String pkg) {
+		uninstallPlugin(pkg, false);
+	}
+
+	private void uninstallPlugin(String k, boolean isId) {
 		checkInit();
-		PlugInfo pl = pluginIdToInfoMap.remove(pluginId);
+		PlugInfo pl = isId ? removePlugById(k) : removePlugByPkg(k);
 		if (pl == null) {
 			return;
 		}
-		// pluginPackageToInfoMap.remove(pl.getPackageInfo().packageName);
-		if (android.os.Build.VERSION.SDK_INT >= 14) {
-		    try {
-				Application.class.getMethod("unregisterComponentCallbacks", Application.class)
-				.invoke(context, pl.getApplication());
-			}  catch (Exception e) {
-				e.printStackTrace();
+		if (context instanceof Application) {
+			if (android.os.Build.VERSION.SDK_INT >= 14) {
+				try {
+					Application.class
+							.getMethod(
+									"unregisterComponentCallbacks",
+									Class.forName("android.content.ComponentCallbacks"))
+							.invoke(context, pl.getApplication());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
 
+	private PlugInfo removePlugById(String pluginId) {
+		PlugInfo pl = null;
+		synchronized (this) {
+			pl = pluginIdToInfoMap.remove(pluginId);
+			if (pl == null) {
+				return null;
+			}
+			pluginPkgToInfoMap.remove(pl.getPackageName());
+		}
+		return pl;
+	}
+
+	private PlugInfo removePlugByPkg(String pkg) {
+		PlugInfo pl = null;
+		synchronized (this) {
+			pl = pluginPkgToInfoMap.remove(pkg);
+			if (pl == null) {
+				return null;
+			}
+			pluginIdToInfoMap.remove(pl.getId());
+		}
+		return pl;
+	}
+
 	/**
 	 * 加载指定目录下的所有插件
+	 * <p>
+	 * 都使用文件名作为Id
 	 * 
 	 * @param pluginSrcDirFile
 	 *            - apk目录
 	 * @return 插件数目
 	 * @throws Exception
 	 */
-	public int loadAllPluginsFromDirectory(File pluginSrcDirFile)
+	public Collection<PlugInfo> loadPlugin(final File pluginSrcDirFile)
 			throws Exception {
 		checkInit();
-		// pluginPackageToInfoMap.clear();
-		pluginIdToInfoMap.clear();
-		if (!pluginSrcDirFile.exists()) {
-			return 0;
+		if (pluginSrcDirFile == null || !pluginSrcDirFile.exists()) {
+			Log.e(tag, "invalidate pluginDir :"+pluginSrcDirFile);
+			return null;
+		}
+		if (pluginSrcDirFile.isFile()) {
+			ArrayList<PlugInfo> list = new ArrayList<PlugInfo>(1);
+			PlugInfo one = loadPluginWithId(pluginSrcDirFile, null, null);
+			list.add(one);
+			return list;
+		}
+		// clear all first
+		synchronized (this) {
+			pluginPkgToInfoMap.clear();
+			pluginIdToInfoMap.clear();
 		}
 		File[] pluginApks = pluginSrcDirFile.listFiles(this);
 		if (pluginApks == null || pluginApks.length < 1) {
@@ -143,26 +228,29 @@ public class PluginContainer implements FileFilter {
 		for (File pluginApk : pluginApks) {
 			PlugInfo plugInfo = buildPlugInfo(pluginApk, null, null);
 			if (plugInfo != null) {
-				// pluginPackageToInfoMap.put(
-				// plugInfo.getPackageInfo().packageName, plugInfo);
-				pluginIdToInfoMap.put(plugInfo.getId(), plugInfo);
+				savePluginToMap(plugInfo);
 			}
 		}
-		return pluginIdToInfoMap.size();
+		return pluginIdToInfoMap.values();
 	}
 
-	/**
-	 * 单独加载一个apk <br/>
-	 * 使用文件名作为插件id <br/>
-	 * 目标文件也是与源文件同名
-	 * 
-	 * @param pluginApk
-	 * @return
-	 * @throws Exception
-	 */
-	public PlugInfo loadPlugin(File pluginApk) throws Exception {
-		return loadPluginWithId(pluginApk, null, null);
+	private synchronized void savePluginToMap(PlugInfo plugInfo) {
+		pluginPkgToInfoMap.put(plugInfo.getPackageName(), plugInfo);
+		pluginIdToInfoMap.put(plugInfo.getId(), plugInfo);
 	}
+
+//	/**
+//	 * 单独加载一个apk <br/>
+//	 * 使用文件名作为插件id <br/>
+//	 * 目标文件也是与源文件同名
+//	 * 
+//	 * @param pluginApk
+//	 * @return
+//	 * @throws Exception
+//	 */
+//	public PlugInfo loadPlugin(File pluginApk) throws Exception {
+//		return loadPluginWithId(pluginApk, null, null);
+//	}
 
 	/**
 	 * 单独加载一个apk
@@ -180,11 +268,10 @@ public class PluginContainer implements FileFilter {
 
 	public PlugInfo loadPluginWithId(File pluginApk, String pluginId,
 			String targetFileName) throws Exception {
+		checkInit();
 		PlugInfo plugInfo = buildPlugInfo(pluginApk, pluginId, targetFileName);
 		if (plugInfo != null) {
-			// pluginPackageToInfoMap.put(plugInfo.getPackageInfo().packageName,
-			// plugInfo);
-			pluginIdToInfoMap.put(plugInfo.getId(), plugInfo);
+			savePluginToMap(plugInfo);
 		}
 		return plugInfo;
 	}
@@ -201,11 +288,10 @@ public class PluginContainer implements FileFilter {
 			copyApkToPrivatePath(pluginApk, privateFile);
 		}
 		String dexPath = privateFile.getAbsolutePath();
-		final ClassLoader parentLoader = context.getClassLoader();
-		ManifestReader.setManifestInfo(context, dexPath, info);
+		PluginManifestUtil.setManifestInfo(context, dexPath, info);
 
 		PluginClassLoader loader = new PluginClassLoader(dexPath,
-				dexOutputPath, parentLoader, info);
+				dexOutputPath, frameworkClassLoader, info);
 		info.setClassLoader(loader);
 
 		try {
@@ -222,6 +308,7 @@ public class PluginContainer implements FileFilter {
 		}
 		initPluginApplication(info);
 		// createPluginActivityProxyDexes(info);
+		Log.i(tag, "buildPlugInfo: " + info);
 		return info;
 	}
 
@@ -257,29 +344,24 @@ public class PluginContainer implements FileFilter {
 				info);
 		// set field: mBase
 		ReflectionUtils.setFieldValue(application, "mBase", ctxWrapper);
-		// set ActivityManager
-		// {
-		// ActivityManager actmgr_orig = (ActivityManager) context
-		// .getSystemService(Context.ACTIVITY_SERVICE);
-		// PluginActivityManager actmgr = new PluginActivityManager(
-		// actmgr_orig, info);
-		// info.activityManager = actmgr;
-		// }
 		// set field: mLoadedApk, get from context(framework application)
 		Object mLoadedApk = ReflectionUtils
 				.getFieldValue(context, "mLoadedApk");
 		ReflectionUtils.setFieldValue(application, "mLoadedApk", mLoadedApk);
-		if (android.os.Build.VERSION.SDK_INT >= 14){
-			Application.class.getMethod("registerComponentCallbacks", Application.class)
-		    .invoke(context, application);
+		if (context instanceof Application) {
+			if (android.os.Build.VERSION.SDK_INT >= 14) {
+				Application.class.getMethod("registerComponentCallbacks",
+						Class.forName("android.content.ComponentCallbacks"))
+						.invoke(context, application);
+			}
 		}
-		// invoke application's onCreate()
+		// invoke plugin application's onCreate()
 		application.onCreate();
 	}
 
 	private void copyApkToPrivatePath(File pluginApk, File f) {
 		// if (f.exists() && pluginApk.length() == f.length()) {
-		// // TODO 这里只是简单的判断如果两个文件长度相同则不拷贝，严格的做应该比较签名如 md5\sha-1
+		// // 这里只是简单的判断如果两个文件长度相同则不拷贝，严格的做应该比较签名如 md5\sha-1
 		// return;
 		// }
 		FileUtil.copyFile(pluginApk, f);
@@ -289,7 +371,7 @@ public class PluginContainer implements FileFilter {
 		return dexInternalStoragePath;
 	}
 
-	public Application getContext() {
+	public Context getContext() {
 		return context;
 	}
 
@@ -300,6 +382,10 @@ public class PluginContainer implements FileFilter {
 	public void setPluginActivityLifeCycleCallback(
 			PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback) {
 		this.pluginActivityLifeCycleCallback = pluginActivityLifeCycleCallback;
+	}
+
+	FrameworkClassLoader getFrameworkClassLoader() {
+		return frameworkClassLoader;
 	}
 
 	@Override
