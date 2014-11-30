@@ -13,12 +13,15 @@ dynamic load uninstalled apk<br/>
      到您的app的libs目录<br/>
      
 然后，在您App的 AndroidManifest.xml 文件中做两件事：<br/>
-1、添加读写SD卡的权限: <br/>
-    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"/> <br/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>  <br/>
-2、注册一个Activity <br/>
-   <activity android:name="androidx.pluginmgr.PluginActivity" /> <br/>
+1、添加读写SD卡的权限: 
    
+    &lt;uses-permission android:name=&#34;android.permission.MOUNT_UNMOUNT_FILESYSTEMS&#34;/&gt; 
+    &lt;uses-permission android:name=&#34;android.permission.WRITE_EXTERNAL_STORAGE&#34;/&gt;  
+    
+2、注册一个Activity 
+ 
+   &lt;activity android:name=&#34;androidx.pluginmgr.PluginActivity&#34; />&gt; <br/>
+     
 要想启动一个未安装的APK其中的Activity,您只需要掌握一个类，两个方法即可!<br/>
 这个类就是androidx.pluginmgr.PluginManager <br/>
 看代码：<br/>
