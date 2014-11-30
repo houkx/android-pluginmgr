@@ -56,6 +56,13 @@ public class PluginManager implements FileFilter {
 		return instance;
 	}
 	
+	public void startMainActivity(Context context, String pkgOrId) {
+		PlugInfo plug = preparePlugForStartActivity(context, pkgOrId);
+		String className = frameworkClassLoader.newActivityClassName(
+				plug.getId(), plug.getMainActivity().activityInfo.name);
+		context.startActivity(new Intent().setComponent(new ComponentName(context, className)));
+	}
+	
 	public void startActivity(Context context, Intent intent) {
 		performStartActivity(context, intent);
 		context.startActivity(intent);
@@ -64,6 +71,19 @@ public class PluginManager implements FileFilter {
 	public void startActivityForResult(Activity activity, Intent intent,int requestCode) {
 		performStartActivity(context, intent);
 		activity.startActivityForResult(intent,requestCode);
+	}
+	
+	private PlugInfo preparePlugForStartActivity(Context context, String plugIdOrPkg){
+		PlugInfo plug = null;
+		plug = getPluginByPackageName(plugIdOrPkg);
+		if (plug == null) {
+			plug = getPluginById(plugIdOrPkg);
+		}
+		if (plug == null) {
+			throw new IllegalArgumentException("plug not found by:"
+					+ plugIdOrPkg);
+		}
+		return plug;
 	}
 	
 	private void performStartActivity(Context context, Intent intent) {
@@ -79,15 +99,7 @@ public class PluginManager implements FileFilter {
 			throw new IllegalArgumentException(
 					"plug intent must set the ComponentName!");
 		}
-		PlugInfo plug = null;
-		plug = getPluginByPackageName(plugIdOrPkg);
-		if (plug == null) {
-			plug = getPluginById(plugIdOrPkg);
-		}
-		if (plug == null) {
-			throw new IllegalArgumentException("plug not found by:"
-					+ plugIdOrPkg);
-		}
+		PlugInfo plug = preparePlugForStartActivity(context, plugIdOrPkg);
 		String className = frameworkClassLoader.newActivityClassName(
 				plug.getId(), actName);
 		ComponentName comp = new ComponentName(context, className);
