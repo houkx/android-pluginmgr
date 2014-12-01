@@ -7,6 +7,8 @@ dynamic load uninstalled apk<br>
 此框架使动态加载APK非常简单<br>
 只需要2分钟，您就可以学会它的用法：<br>
 
+你可以直接下载demo工程--PlugLoadDemo 再对照阅读下文
+
 首先，添加jar包: <br>
      pluginmgr-xx.jar (可以下载源码，自己用maven build)<br>
      dexmaker-xx.jar (此时最新版为dexmaker-1.1.jar)<br>
