@@ -10,6 +10,7 @@ import android.app.Application;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 
@@ -121,19 +122,41 @@ public class PlugInfo {
 		return null;
 	}
 
-	public ActivityInfo findReceiverByClassName(String actName) {
+	public ActivityInfo findReceiverByClassName(String className) {
 		if (packageInfo.receivers == null) {
 			return null;
 		}
 		for (ActivityInfo receiver : packageInfo.receivers) {
-			if (receiver.name.equals(actName)) {
+			if (receiver.name.equals(className)) {
 				return receiver;
 			}
 		}
 		return null;
 
 	}
-
+	public ServiceInfo findServiceByClassName(String className) {
+		if (packageInfo.services == null) {
+			return null;
+		}
+		for (ServiceInfo service : packageInfo.services) {
+			if (service.name.equals(className)) {
+				return service;
+			}
+		}
+		return null;
+		
+	}
+	public ServiceInfo findServiceByAction(String action) {
+		if (services == null || services.isEmpty()) {
+			return null;
+		}
+		for (ResolveInfo act : services) {
+			if (act.filter != null && act.filter.hasAction(action)) {
+				return act.serviceInfo;
+			}
+		}
+		return null;
+	}
 	public void addActivity(ResolveInfo activity) {
 		activities.add(activity);
 		if (activity.filter != null
@@ -147,6 +170,13 @@ public class PlugInfo {
 			receivers = new ArrayList<ResolveInfo>();
 		}
 		receivers.add(receiver);
+	}
+	
+	public void addService(ResolveInfo service) {
+		if (services == null) {
+			services = new ArrayList<ResolveInfo>();
+		}
+		services.add(service);
 	}
 
 	public String getId() {
