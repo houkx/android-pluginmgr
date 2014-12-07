@@ -339,7 +339,7 @@ class ActivityClassGenerator {
 		TypeId<ActivityOverider> ActivityOverider = TypeId
 				.get(ActivityOverider.class);
 		MethodId<ActivityOverider, Intent> methodOveride = ActivityOverider
-				.getMethod(intent, "newIntent", intent, requestCode, bundle,
+				.getMethod(intent, "newIntentForStartActivity", intent, requestCode, bundle,
 						TypeId.STRING, TypeId.get(Activity.class));
 		// locals
 		Local<D> localThis = methodCode.getThis(generatedType);

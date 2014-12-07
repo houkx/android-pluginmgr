@@ -43,7 +43,7 @@ public class ActivityOverider {
 	 *            - 发出请求的Activity
 	 * @return 修改后的 Intent
 	 */
-	public static Intent newIntent(Intent intent, int requestCode,
+	public static Intent newIntentForStartActivity(Intent intent, int requestCode,
 			Bundle options, String pluginId, Activity fromAct) {
 		// 主要做以下工作：
 		// 1 、修改Intent的跳转目标
