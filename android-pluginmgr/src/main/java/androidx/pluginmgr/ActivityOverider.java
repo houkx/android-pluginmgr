@@ -10,6 +10,7 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.ContextWrapper;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.res.AssetManager;
 import android.os.Bundle;
@@ -27,24 +28,51 @@ public class ActivityOverider {
 	 * 自动生成的 Activity 的全类名
 	 */
 	static final String targetClassName = "androidx.pluginmgr.PluginActivity";
-
+    // ------------------- process service  ---------
+	/**
+	 * 覆盖 StarService 方法
+	 * 
+	 * @param intent
+	 * @param fromAct
+	 */
+	public static ComponentName overrideStartService(Activity fromAct,String pluginId,Intent intent) {
+		//TODO 覆盖 StarService 方法
+		Log.d(tag, "overrideStartService");
+		return fromAct.startService(intent);
+	}
+	public static boolean overrideBindService(Activity fromAct,String pluginId,Intent intent,ServiceConnection conn, int flags) {
+		//TODO overrideBindService
+		Log.d(tag, "overrideBindService");
+		return fromAct.bindService(intent, conn, flags);
+	}
+	public static void overrideUnbindService(Activity fromAct,String pluginId,ServiceConnection conn) {
+		//TODO overrideUnbindService
+		Log.d(tag, "overrideUnbindService");
+		fromAct.unbindService( conn);
+	}
+	public static boolean overrideStopService(Activity fromAct,String pluginId,Intent intent){
+		//TODO overrideStopService
+		Log.d(tag, "overrideStopService");
+		return fromAct.stopService(intent);
+	}
+	// ------------------ process Activity ---------------------------
 	/**
 	 * 处理 Intent 跳转
 	 * <p>
 	 * 供插件中的 startActivity 调用
 	 * 
+	 * @param fromAct
+	 *            - 发出请求的Activity
+	 * @param pluginId
+	 *            - 插件id
 	 * @param intent
 	 *            - 启动其他Activity的Intent请求
 	 * @param requestCode
 	 * @param options
-	 * @param pluginId
-	 *            - 插件id
-	 * @param fromAct
-	 *            - 发出请求的Activity
 	 * @return 修改后的 Intent
 	 */
-	public static Intent newIntentForStartActivity(Intent intent, int requestCode,
-			Bundle options, String pluginId, Activity fromAct) {
+	public static Intent overrideStartActivityForResult(Activity fromAct, String pluginId,Intent intent, int requestCode,
+			Bundle options) {
 		// 主要做以下工作：
 		// 1 、修改Intent的跳转目标
 		// 2 、帮助插件类加载器决定使用哪个activity类加载器
@@ -210,7 +238,7 @@ public class ActivityOverider {
 	 * @param fromAct
 	 * @return 是否调用父类的onBackPressed()方法
 	 */
-	public static boolean overideOnbackPressed(String pluginId, Activity fromAct) {
+	public static boolean overrideOnbackPressed(Activity fromAct,String pluginId) {
 		PlugInfo plinfo = PluginManager.getInstance().getPluginById(pluginId);
 		String actName = fromAct.getClass().getSuperclass().getSimpleName();
 		ActivityInfo actInfo = plinfo.findActivityByClassName(actName);
