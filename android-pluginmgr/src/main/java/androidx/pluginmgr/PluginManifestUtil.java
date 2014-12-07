@@ -139,9 +139,9 @@ class PluginManifestUtil {
 			}
 			}
 			eventType = parser.next();
-		} while (!"activity".equals(parser.getName()));
+		} while (!"service".equals(parser.getName()));
 		//
-		info.addActivity(service);
+		info.addService(service);
 	}
 
 	private static void addReceiver(PlugInfo info, String namespace,
