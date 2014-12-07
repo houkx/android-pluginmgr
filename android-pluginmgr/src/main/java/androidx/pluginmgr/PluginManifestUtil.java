@@ -64,7 +64,7 @@ class PluginManifestUtil {
 				} else if ("receiver".equals(parser.getName())) {
 					addReceiver(info, namespaceAndroid, parser);
 				} else if ("service".equals(parser.getName())) {
-					// TODO service Not Support now
+					addService(info, namespaceAndroid, parser);
 				}
 				break;
 			}
@@ -108,6 +108,40 @@ class PluginManifestUtil {
 		} while (!"activity".equals(parser.getName()));
 		//
 		info.addActivity(act);
+	}
+	
+	private static void addService(PlugInfo info, String namespace,
+			XmlPullParser parser) throws XmlPullParserException, IOException {
+		int eventType = parser.getEventType();
+		String serviceName = parser.getAttributeValue(namespace, "name");
+		String packageName = info.getPackageInfo().packageName;
+		serviceName = getName(serviceName, packageName);
+		ResolveInfo service = new ResolveInfo();
+		service.serviceInfo = info.findServiceByClassName(serviceName);
+		do {
+			switch (eventType) {
+			case XmlPullParser.START_TAG: {
+				String tag = parser.getName();
+				if ("intent-filter".equals(tag)) {
+					service.filter = new IntentFilter();
+				} else if ("action".equals(tag)) {
+					String actionName = parser.getAttributeValue(namespace,
+							"name");
+					service.filter.addAction(actionName);
+				} else if ("category".equals(tag)) {
+					String category = parser.getAttributeValue(namespace,
+							"name");
+					service.filter.addCategory(category);
+				} else if ("data".equals(tag)) {
+					// TODO parse data
+				}
+				break;
+			}
+			}
+			eventType = parser.next();
+		} while (!"activity".equals(parser.getName()));
+		//
+		info.addActivity(service);
 	}
 
 	private static void addReceiver(PlugInfo info, String namespace,
