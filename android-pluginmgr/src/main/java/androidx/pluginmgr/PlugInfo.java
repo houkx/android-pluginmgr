@@ -150,9 +150,9 @@ public class PlugInfo {
 		if (services == null || services.isEmpty()) {
 			return null;
 		}
-		for (ResolveInfo act : services) {
-			if (act.filter != null && act.filter.hasAction(action)) {
-				return act.serviceInfo;
+		for (ResolveInfo ser : services) {
+			if (ser.filter != null && ser.filter.hasAction(action)) {
+				return ser.serviceInfo;
 			}
 		}
 		return null;
