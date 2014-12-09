@@ -89,7 +89,9 @@ class PluginManifestUtil {
 			case XmlPullParser.START_TAG: {
 				String tag = parser.getName();
 				if ("intent-filter".equals(tag)) {
-					act.filter = new IntentFilter();
+					if (act.filter == null) {
+						act.filter = new IntentFilter();
+					}
 				} else if ("action".equals(tag)) {
 					String actionName = parser.getAttributeValue(namespace,
 							"name");
@@ -109,7 +111,7 @@ class PluginManifestUtil {
 		//
 		info.addActivity(act);
 	}
-	
+
 	private static void addService(PlugInfo info, String namespace,
 			XmlPullParser parser) throws XmlPullParserException, IOException {
 		int eventType = parser.getEventType();
@@ -123,7 +125,9 @@ class PluginManifestUtil {
 			case XmlPullParser.START_TAG: {
 				String tag = parser.getName();
 				if ("intent-filter".equals(tag)) {
-					service.filter = new IntentFilter();
+					if (service.filter == null) {
+						service.filter = new IntentFilter();
+					}
 				} else if ("action".equals(tag)) {
 					String actionName = parser.getAttributeValue(namespace,
 							"name");
