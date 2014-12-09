@@ -485,7 +485,7 @@ class ActivityClassGenerator {
 		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
 				"unbindService",Conn);
 		MethodId<ActivityOverider, Void> methodOveride = ActivityOverider
-				.getMethod(TypeId.VOID, "unbindService"
+				.getMethod(TypeId.VOID, "overrideUnbindService"
 						,TypeId.get(Activity.class),TypeId.STRING
 						,Conn);
 		Code methodCode = dexMaker.declare(method, PUBLIC);
