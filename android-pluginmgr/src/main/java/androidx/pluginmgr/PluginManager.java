@@ -56,11 +56,25 @@ public class PluginManager implements FileFilter {
 		return instance;
 	}
 	
-	public void startMainActivity(Context context, String pkgOrId) {
+	public boolean startMainActivity(Context context, String pkgOrId) {
+		Log.d(tag, "startMainActivity by:"+pkgOrId);
 		PlugInfo plug = preparePlugForStartActivity(context, pkgOrId);
+		if (frameworkClassLoader == null) {
+			Log.e(tag, "startMainActivity: frameworkClassLoader == null!");
+			return false;
+		}
+		if(plug.getMainActivity()==null){
+			Log.e(tag, "startMainActivity: plug.getMainActivity() == null!");
+			return false;
+		}
+		if(plug.getMainActivity().activityInfo==null){
+			Log.e(tag, "startMainActivity: plug.getMainActivity().activityInfo == null!");
+			return false;
+		}
 		String className = frameworkClassLoader.newActivityClassName(
 				plug.getId(), plug.getMainActivity().activityInfo.name);
 		context.startActivity(new Intent().setComponent(new ComponentName(context, className)));
+		return true;
 	}
 	
 	public void startActivity(Context context, Intent intent) {
