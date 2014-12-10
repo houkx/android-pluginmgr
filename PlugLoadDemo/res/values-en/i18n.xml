@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PlugFrameworkDemo</string>
+    <string name="action_settings">Settings</string>
+    <string name="pl_dir">please input plug apk path</string>
+    <string name="pl_load">LoadPlug</string>
+    <string name="plug_icon_desc">PlugIcon</string>
+    <string name="loading">loading plugins\u2026please wait</string>
+    <string name="dialod_loading_title">Just a moment, please.</string>
+    <string name="dialod_loading_body">loading\u2026</string>
+</resources>

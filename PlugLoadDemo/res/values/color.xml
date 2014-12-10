@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black_text_color">#000000</color>
+    <color name="content_pint">#FAEBD7</color>
+    <color name="content_grey">#686868</color>
+    <color name="time_grey">#9c9c9c</color>
+    <color name="list_diveder_grey">#e3e3e3 </color>
+</resources>

@@ -1,0 +1,41 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context=".MainActivity" >
+
+    <LinearLayout
+        android:id="@+id/top"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="horizontal" >
+
+        <EditText
+            android:id="@+id/pluginDirTxt"
+            android:layout_width="0dip"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.69"
+            android:hint="@string/pl_dir" />
+
+        <Button
+            android:id="@+id/pluginLoader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pl_load" />
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/pluglist"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/top"
+        android:fadingEdge="none"
+        android:scrollbars="vertical"
+        android:scrollingCache="true" />
+
+</RelativeLayout>
