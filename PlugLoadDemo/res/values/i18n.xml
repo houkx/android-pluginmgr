@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">插件化框架Demo</string>
+    <string name="action_settings">设置</string>
+    <string name="pl_dir">请输入插件路径</string>
+    <string name="pl_load">加载插件</string>
+    <string name="plug_icon_desc">插件图标</string>
+    <string name="loading">正在加载插件，请稍候\u2026</string>
+    <string name="dialod_loading_title">请稍候\u2026</string>
+    <string name="dialod_loading_body">正在加载插件\u2026</string>
+
+</resources>

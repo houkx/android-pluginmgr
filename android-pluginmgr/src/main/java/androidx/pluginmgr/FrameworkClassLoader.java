@@ -27,13 +27,14 @@ class FrameworkClassLoader extends ClassLoader {
 		Log.i("cl", "plugIdAndActname = " + java.util.Arrays.toString(plugIdAndActname));
 		if (plugIdAndActname != null) {
 			String pluginId = plugIdAndActname[0];
-			String actClassName = plugIdAndActname[1];
+			
 			PlugInfo plugin = PluginManager.getInstance().getPluginById(
 					pluginId);
 			Log.i("cl", "plugin = " + plugin);
 			if (plugin != null) {
 				try {
 					if (className.equals(ActivityOverider.targetClassName)) {
+						String actClassName = plugIdAndActname[1];
 						return plugin.getClassLoader().loadActivityClass(
 								actClassName);
 					}else{

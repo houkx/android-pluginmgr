@@ -65,7 +65,10 @@ class PluginClassLoader extends DexClassLoader {
 		}
 		return actLoader.loadClass(ActivityOverider.targetClassName);
 	}
-	
+	protected Object getClassLoadingLock(String name){
+		return name;
+	}
+
 	protected Class<?> loadClass(String name, boolean resolve)
 			throws ClassNotFoundException {
 		synchronized (getClassLoadingLock(name)) {

@@ -1,4 +1,4 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -6,24 +6,36 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="androidx.plugintest.MainActivity"
-    android:orientation="vertical"
-     >
-    <EditText 
-        android:id="@+id/path_etxt"
+    tools:context=".MainActivity" >
+
+    <LinearLayout
+        android:id="@+id/top"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:hint="请输入插件路径"
-        />
-    <Button
-        android:id="@+id/load"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="LoadAll" />
-    <Button
-        android:id="@+id/start"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="StartActivity" />
+        android:layout_alignParentTop="true"
+        android:orientation="horizontal" >
 
-</LinearLayout>
+        <EditText
+            android:id="@+id/pluginDirTxt"
+            android:layout_width="0dip"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.69"
+            android:hint="@string/pl_dir" />
+
+        <Button
+            android:id="@+id/pluginLoader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pl_load" />
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/pluglist"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/top"
+        android:fadingEdge="none"
+        android:scrollbars="vertical"
+        android:scrollingCache="true" />
+
+</RelativeLayout>
