@@ -89,7 +89,9 @@ class PluginManifestUtil {
 			case XmlPullParser.START_TAG: {
 				String tag = parser.getName();
 				if ("intent-filter".equals(tag)) {
-					act.filter = new IntentFilter();
+					if (act.filter == null) {
+						act.filter = new IntentFilter();
+					}
 				} else if ("action".equals(tag)) {
 					String actionName = parser.getAttributeValue(namespace,
 							"name");
@@ -124,7 +126,9 @@ class PluginManifestUtil {
 			case XmlPullParser.START_TAG: {
 				String tag = parser.getName();
 				if ("intent-filter".equals(tag)) {
-					receiver.filter = new IntentFilter();
+					if (receiver.filter == null) {
+						receiver.filter = new IntentFilter();
+					}
 				} else if ("action".equals(tag)) {
 					String actionName = parser.getAttributeValue(namespace,
 							"name");

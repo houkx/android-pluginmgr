@@ -23,27 +23,28 @@ class FrameworkClassLoader extends ClassLoader {
 	protected Class<?> loadClass(String className, boolean resolv)
 			throws ClassNotFoundException {
 		Log.i("cl", "loadClass: " + className);
-		if (className.equals(ActivityOverider.targetClassName)) {
-			String[] plugIdAndActname = this.plugIdAndActname;
-			Log.i("cl", "plugIdAndActname = " + java.util.Arrays.toString(plugIdAndActname));
-			if (plugIdAndActname != null) {
-				String pluginId = plugIdAndActname[0];
-				String actClassName = plugIdAndActname[1];
-				PlugInfo plugin = PluginManager.getInstance().getPluginById(
-						pluginId);
-				Log.i("cl", "plugin = " + plugin);
-
-				if (plugin != null) {
-					try {
+		String[] plugIdAndActname = this.plugIdAndActname;
+		Log.i("cl", "plugIdAndActname = " + java.util.Arrays.toString(plugIdAndActname));
+		if (plugIdAndActname != null) {
+			String pluginId = plugIdAndActname[0];
+			String actClassName = plugIdAndActname[1];
+			PlugInfo plugin = PluginManager.getInstance().getPluginById(
+					pluginId);
+			Log.i("cl", "plugin = " + plugin);
+			if (plugin != null) {
+				try {
+					if (className.equals(ActivityOverider.targetClassName)) {
 						return plugin.getClassLoader().loadActivityClass(
 								actClassName);
-					} catch (ClassNotFoundException e) {
-						e.printStackTrace();
+					}else{
+						return plugin.getClassLoader().loadClass(className);
 					}
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
 				}
-				this.plugIdAndActname = null;
 			}
 		}
+		
 		return super.loadClass(className, resolv);
 	}
 }
