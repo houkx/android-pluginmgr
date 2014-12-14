@@ -156,11 +156,20 @@ public class ActivityOverider {
 		intent.setComponent(compname);
 	}
 
+	static File getPluginLibDir(PlugInfo plugin) {
+		String pluginPath = PluginManager.getInstance()
+				.getDexInternalStoragePath().getAbsolutePath();
+		String pluginDir = pluginPath + '/' + plugin.getId() + "-gen/lib/";
+		File folder = new File(pluginDir);
+		folder.mkdirs();
+		return folder;
+	}
+	
 	static File getPorxyActivityDexPath(PlugInfo plugin, String activity) {
 		String actName = activity;
 		String pluginPath = PluginManager.getInstance()
 				.getDexInternalStoragePath().getAbsolutePath();
-		String pluginDir = pluginPath + '/' + plugin.getId() + ".acts/";
+		String pluginDir = pluginPath + '/' + plugin.getId() + "-gen/acts/";
 		File folder = new File(pluginDir);
 		folder.mkdirs();
 		File saveDir = new File(folder, actName + ".dex");

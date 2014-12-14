@@ -19,6 +19,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.os.Looper;
 import android.util.Log;
 
 /**
@@ -28,7 +29,7 @@ import android.util.Log;
  */
 public class PluginManager implements FileFilter {
 	private static final PluginManager instance = new PluginManager();
-
+    private Activity actFrom;
 	private PluginManager() {
 	}
 
@@ -38,6 +39,7 @@ public class PluginManager implements FileFilter {
 		}
 		Context ctx = context;
 		if (context instanceof Activity) {
+			instance.actFrom = (Activity)context;
 			ctx = ((Activity) context).getApplication();
 		} else if (context instanceof Service) {
 			ctx = ((Service) context).getApplication();
@@ -130,7 +132,7 @@ public class PluginManager implements FileFilter {
 	private File dexInternalStoragePath;
 	private FrameworkClassLoader frameworkClassLoader;
 	private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
-	private final String tag = "plugmgr";
+	private static final String tag = "plugmgr";
 
 	private void init(Context ctx) {
 		context = ctx;
@@ -364,18 +366,40 @@ public class PluginManager implements FileFilter {
 	// }
 	// }
 
-	private void initPluginApplication(PlugInfo info) throws Exception {
+	private void initPluginApplication(final PlugInfo info) throws Exception {
 		String className = info.getPackageInfo().applicationInfo.name;
+		Log.d(tag, info.getId() + ", ApplicationClassName = " + className);
 		// create Application instance for plugin
-		Application application = null;
 		if (className == null) {
-			application = new Application();
+			Application application = new Application();
+			setApplicationBase(info, application);
 		} else {
 			ClassLoader loader = info.getClassLoader();
-			Class<?> applicationClass = loader.loadClass(className);
-			application = (Application) applicationClass.newInstance();
+			final Class<?> applicationClass = loader.loadClass(className);
+			if (actFrom != null) {
+				actFrom.runOnUiThread(new Runnable() {
+					public void run() {
+						try {
+							Application application = (Application) applicationClass
+									.newInstance();
+							setApplicationBase(info, application);
+							// invoke plugin application's onCreate()
+							application.onCreate();
+						} catch (Throwable e) {
+							Log.e(tag, Log.getStackTraceString(e));
+						}
+					}
+				});
+
+			} else {
+				Application application = (Application) applicationClass
+						.newInstance();
+				setApplicationBase(info, application);
+			}
 		}
-		info.setApplication(application);
+	}
+    private void setApplicationBase(PlugInfo info,Application application)throws Exception{
+    	info.setApplication(application);
 		//
 		PluginContextWrapper ctxWrapper = new PluginContextWrapper(context,
 				info);
@@ -392,10 +416,7 @@ public class PluginManager implements FileFilter {
 						.invoke(context, application);
 			}
 		}
-		// invoke plugin application's onCreate()
-		application.onCreate();
-	}
-
+    }
 	private void copyApkToPrivatePath(File pluginApk, File f) {
 		// if (f.exists() && pluginApk.length() == f.length()) {
 		// // 这里只是简单的判断如果两个文件长度相同则不拷贝，严格的做应该比较签名如 md5\sha-1

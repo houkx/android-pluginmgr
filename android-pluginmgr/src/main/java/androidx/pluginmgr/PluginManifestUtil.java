@@ -3,8 +3,14 @@
  */
 package androidx.pluginmgr;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -12,6 +18,7 @@ import org.xmlpull.v1.XmlPullParserFactory;
 
 import android.content.Context;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -38,10 +45,54 @@ class PluginManifestUtil {
 		// Log.d("ManifestReader: setManifestInfo", "GET_SHARED_LIBRARY_FILES="
 		// + pkgInfo.applicationInfo.nativeLibraryDir);
 		info.setPackageInfo(pkgInfo);
+		File libdir = ActivityOverider.getPluginLibDir(info);
+		if(extractLibFile(apkPath, libdir)){
+			pkgInfo.applicationInfo.nativeLibraryDir=libdir.getAbsolutePath();
+		}
+		
 		setAttrs(info, manifestXML);
 		return info.getPackageInfo().packageName;
 	}
-
+	private static boolean extractLibFile(String apkPath, File tardir)
+			throws  IOException {
+		tardir.mkdir();
+		ZipFile zip = new ZipFile(new File(apkPath));
+		
+		String defaultArch = "armeabi";
+        Map<String,ZipEntry> archLibEntries = new HashMap<String, ZipEntry>();
+		for (Enumeration<? extends ZipEntry> e = zip.entries(); e
+				.hasMoreElements();) {
+			ZipEntry entry = e.nextElement();
+			String name = entry.getName();
+			if (name.startsWith("/")) {
+				name = name.substring(1);
+			}
+			if (name.startsWith("lib/")) {
+				int sp = name.indexOf('/', 4);
+				if (sp > 0) {
+					String osArch = name.substring(4, sp);
+					archLibEntries.put(osArch.toLowerCase(), entry);
+				} else {
+					archLibEntries.put(defaultArch, entry);
+				}
+			}
+		}
+		boolean rs = false;
+		String arch = System.getProperty("os.arch");
+		ZipEntry libEntry = archLibEntries.get(arch.toLowerCase());
+		if (libEntry == null) {
+			libEntry = archLibEntries.get(defaultArch);
+		}
+		if (libEntry != null) {
+			String ename = libEntry.getName();
+			String pureName = ename.substring(ename.lastIndexOf('/') + 1);
+			File target = new File(tardir, pureName);
+			FileUtil.writeToFile(zip.getInputStream(libEntry), target);
+			rs = true;
+		}
+		zip.close();
+		return rs;
+	}
 	private static void setAttrs(PlugInfo info, String manifestXML)
 			throws XmlPullParserException, IOException {
 		XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
@@ -65,6 +116,8 @@ class PluginManifestUtil {
 					addReceiver(info, namespaceAndroid, parser);
 				} else if ("service".equals(parser.getName())) {
 					addService(info, namespaceAndroid, parser);
+				}else if("application".equals(parser.getName())){
+					parseApplicationInfo(info, namespaceAndroid, parser);
 				}
 				break;
 			}
@@ -74,6 +127,14 @@ class PluginManifestUtil {
 			}
 			eventType = parser.next();
 		} while (eventType != XmlPullParser.END_DOCUMENT);
+	}
+
+	private static void parseApplicationInfo(PlugInfo info,
+			String namespace, XmlPullParser parser) throws XmlPullParserException, IOException{
+		String applicationName = parser.getAttributeValue(namespace, "name");
+		String packageName = info.getPackageInfo().packageName;
+		ApplicationInfo applicationInfo = info.getPackageInfo().applicationInfo;
+		applicationInfo.name = getName(applicationName, packageName);
 	}
 
 	private static void addActivity(PlugInfo info, String namespace,

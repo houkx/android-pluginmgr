@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
@@ -19,6 +20,27 @@ import java.nio.channels.ReadableByteChannel;
  */
 class FileUtil {
 
+	public static void writeToFile(InputStream data, File target) throws IOException {
+		FileOutputStream fo = null;
+		ReadableByteChannel src = null;
+		FileChannel out = null;
+		try {
+			src = Channels.newChannel(data);
+			fo = new FileOutputStream(target);
+			out = fo.getChannel();
+			out.transferFrom(src, 0, data.available());
+		} finally {
+			if (fo != null) {
+				fo.close();
+			}
+			if (src != null) {
+				src.close();
+			}
+			if (out != null) {
+				out.close();
+			}
+		}
+	}
 	public static void writeToFile(byte[] data, File target) throws IOException {
 		FileOutputStream fo = null;
 		ReadableByteChannel src = null;

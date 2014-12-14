@@ -33,6 +33,7 @@ class PluginClassLoader extends DexClassLoader {
 		this.libraryPath = plugin.getPackageInfo().applicationInfo.nativeLibraryDir;
 		this.optimizedDirectory = optimizedDir;
 		tag = "PluginClassLoader( " + plugin.getPackageInfo().packageName + " )";
+		Log.i(tag, "libraryPath = "+libraryPath);
 	}
 
 	Class<?> loadActivityClass(final String actClassName) throws ClassNotFoundException {

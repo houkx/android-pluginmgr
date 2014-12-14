@@ -1,5 +1,6 @@
 package androidx.pluginmgr;
 
+import dalvik.system.PathClassLoader;
 import android.util.Log;
 
 /**
