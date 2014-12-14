@@ -28,7 +28,7 @@ public class PlugInfo {
 	private String filePath;
 	private PackageInfo packageInfo;
 	private List<ResolveInfo> activities = new ArrayList<ResolveInfo>();
-	private List<ResolveInfo> mainActivities = new ArrayList<ResolveInfo>();
+	private ResolveInfo mainActivity;
 	private List<ResolveInfo> services;
 	private List<ResolveInfo> receivers;
 	private List<ResolveInfo> providers;
@@ -161,7 +161,7 @@ public class PlugInfo {
 		activities.add(activity);
 		if (activity.filter != null
 				&& activity.filter.hasAction("android.intent.action.MAIN")) {
-			mainActivities.add(activity);
+			mainActivity = activity;
 		}
 	}
 
@@ -247,10 +247,6 @@ public class PlugInfo {
 		return activities;
 	}
 
-	public List<ResolveInfo> getMainActivities() {
-		return mainActivities;
-	}
-
 	public List<ResolveInfo> getServices() {
 		return services;
 	}
@@ -268,10 +264,7 @@ public class PlugInfo {
 	}
 
 	public ResolveInfo getMainActivity() {
-		if (mainActivities == null || mainActivities.isEmpty()) {
-			return null;
-		}
-		return mainActivities.get(0);
+		return mainActivity;
 	}
 
 	public List<ResolveInfo> getReceivers() {
