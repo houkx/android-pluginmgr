@@ -2,7 +2,7 @@ android-pluginmgr<br>
 dynamic load uninstalled apk<br>
 动态加载未安装APK<br>
 ============================================================================================
-
+<font color="red">Change: experiment分支开始支持so</font><br>
 
 此框架使动态加载APK非常简单<br>
 只需要2分钟，您就可以学会它的用法：<br>
