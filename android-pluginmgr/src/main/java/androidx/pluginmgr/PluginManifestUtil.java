@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -55,11 +57,11 @@ class PluginManifestUtil {
 	}
 	private static boolean extractLibFile(String apkPath, File tardir)
 			throws  IOException {
-		tardir.mkdir();
+		
 		ZipFile zip = new ZipFile(new File(apkPath));
 		
 		String defaultArch = "armeabi";
-        Map<String,ZipEntry> archLibEntries = new HashMap<String, ZipEntry>();
+        Map<String,List<ZipEntry>> archLibEntries = new HashMap<String, List<ZipEntry>>();
 		for (Enumeration<? extends ZipEntry> e = zip.entries(); e
 				.hasMoreElements();) {
 			ZipEntry entry = e.nextElement();
@@ -68,27 +70,41 @@ class PluginManifestUtil {
 				name = name.substring(1);
 			}
 			if (name.startsWith("lib/")) {
-				int sp = name.indexOf('/', 4);
-				if (sp > 0) {
-					String osArch = name.substring(4, sp);
-					archLibEntries.put(osArch.toLowerCase(), entry);
-				} else {
-					archLibEntries.put(defaultArch, entry);
+				if(entry.isDirectory()){
+					continue;
 				}
+				int sp = name.indexOf('/', 4);
+				String osArch;
+				if (sp > 0) {
+					 osArch = name.substring(4, sp).toLowerCase();
+				} else {
+					osArch=defaultArch;
+				}
+				List<ZipEntry> alist = archLibEntries.get(osArch);
+				if (alist == null) {
+					alist = new LinkedList<ZipEntry>();
+					archLibEntries.put(osArch, alist);
+				}
+				alist.add(entry);
 			}
 		}
 		boolean rs = false;
 		String arch = System.getProperty("os.arch");
-		ZipEntry libEntry = archLibEntries.get(arch.toLowerCase());
-		if (libEntry == null) {
-			libEntry = archLibEntries.get(defaultArch);
+		List<ZipEntry> alist = archLibEntries.get(arch.toLowerCase());
+		if (alist == null) {
+			alist = archLibEntries.get(defaultArch);
 		}
-		if (libEntry != null) {
-			String ename = libEntry.getName();
-			String pureName = ename.substring(ename.lastIndexOf('/') + 1);
-			File target = new File(tardir, pureName);
-			FileUtil.writeToFile(zip.getInputStream(libEntry), target);
+		if (alist != null) {
 			rs = true;
+			if (!tardir.exists()) {
+				tardir.mkdirs();
+			}
+			for (ZipEntry libEntry : alist) {
+				String ename = libEntry.getName();
+				String pureName = ename.substring(ename.lastIndexOf('/') + 1);
+				File target = new File(tardir, pureName);
+				FileUtil.writeToFile(zip.getInputStream(libEntry), target);
+			}
 		}
 		zip.close();
 		return rs;
