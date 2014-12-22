@@ -39,6 +39,7 @@ class FileUtil {
 			if (out != null) {
 				out.close();
 			}
+			data.close();
 		}
 	}
 	public static void writeToFile(byte[] data, File target) throws IOException {

@@ -155,15 +155,12 @@ public class ActivityOverider {
 		}
 		intent.setComponent(compname);
 	}
-	
 	static File getPluginBaseDir(String pluginId) {
 		String pluginPath = PluginManager.getInstance()
 				.getDexInternalStoragePath().getAbsolutePath();
 		String pluginDir = pluginPath + '/' + pluginId + "-dir/";
 		File folder = new File(pluginDir);
-		if(folder.exists()){
-			folder.mkdirs();
-		}
+		folder.mkdirs();
 		return folder;
 	}
 	
@@ -253,7 +250,7 @@ public class ActivityOverider {
 	 */
 	public static boolean overrideOnbackPressed(Activity fromAct,String pluginId) {
 		PlugInfo plinfo = PluginManager.getInstance().getPluginById(pluginId);
-		String actName = fromAct.getClass().getSuperclass().getSimpleName();
+		String actName = fromAct.getClass().getSuperclass().getName();
 		ActivityInfo actInfo = plinfo.findActivityByClassName(actName);
 		boolean finish = plinfo.isFinishActivityOnbackPressed(actInfo);
 		if (finish) {
@@ -272,11 +269,14 @@ public class ActivityOverider {
 		
 		// setTheme
 		PlugInfo plugin = con.getPluginById(pluginId);
-		String actName = fromAct.getClass().getSuperclass().getSimpleName();
+		String actName = fromAct.getClass().getSuperclass().getName();
+		Log.d(tag, "pluginId = "+plugin+", actName = "+actName+", simpleName="+fromAct.getClass().getSuperclass().getSimpleName());
 		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
 		int themeResId = actInfo.theme;
+		Log.d(tag,"actTheme="+themeResId);
 		if (themeResId == 0) {
 			themeResId = plugin.getPackageInfo().applicationInfo.theme;
+			Log.d(tag,"applicationTheme="+themeResId);
 		}
 		if (themeResId != 0) {
 			fromAct.setTheme(themeResId);

@@ -135,12 +135,12 @@ public class PluginManager implements FileFilter {
 
 	private void init(Context ctx) {
 		context = ctx;
-		File optimizedDexPath = ctx.getDir("outdex", Context.MODE_PRIVATE);
+		File optimizedDexPath = ctx.getDir("plugsout", Context.MODE_PRIVATE);
 		if (!optimizedDexPath.exists()) {
 			optimizedDexPath.mkdirs();
 		}
 		dexOutputPath = optimizedDexPath.getAbsolutePath();
-		dexInternalStoragePath = context.getDir("dex", Context.MODE_PRIVATE);
+		dexInternalStoragePath = context.getDir("plugins", Context.MODE_PRIVATE);
 		dexInternalStoragePath.mkdirs();
 		try {
 			Object mPackageInfo = ReflectionUtils.getFieldValue(ctx,
@@ -321,7 +321,9 @@ public class PluginManager implements FileFilter {
 
 		File privateFile = new File(dexInternalStoragePath,
 				targetFileName == null ? pluginApk.getName() : targetFileName);
+		
 		info.setFilePath(privateFile.getAbsolutePath());
+		
 		if (!pluginApk.getAbsolutePath().equals(privateFile.getAbsolutePath())) {
 			copyApkToPrivatePath(pluginApk, privateFile);
 		}

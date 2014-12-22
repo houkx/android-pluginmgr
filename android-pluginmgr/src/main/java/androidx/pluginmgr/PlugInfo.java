@@ -63,14 +63,19 @@ public class PlugInfo {
 		if (act == null) {
 			return false;
 		}
-		return containsFlag(getFlags(act), FLAG_FinishActivityOnbackPressed);
+		int flags = getFlags(act);
+		return containsFlag(flags, FLAG_FinishActivityOnbackPressed);
 	}
 
 	public boolean isInvokeSuperOnbackPressed(ActivityInfo act) {
 		if (act == null) {
 			return true;
 		}
-		return containsFlag(getFlags(act), FLAG_INVOKE_SUPER_ONBACKPRESSED);
+		int flags = getFlags(act);
+		if (flags == 0) {
+			return true;//默认true
+		}
+		return containsFlag(flags, FLAG_INVOKE_SUPER_ONBACKPRESSED);
 	}
 
 	public void setInvokeSuperOnbackPressed(ActivityInfo act,

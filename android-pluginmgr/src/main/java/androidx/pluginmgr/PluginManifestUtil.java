@@ -12,6 +12,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -56,7 +57,7 @@ class PluginManifestUtil {
 		return info.getPackageInfo().packageName;
 	}
 	private static boolean extractLibFile(String apkPath, File tardir)
-			throws  IOException {
+			throws ZipException, IOException {
 		
 		ZipFile zip = new ZipFile(new File(apkPath));
 		
@@ -74,32 +75,33 @@ class PluginManifestUtil {
 					continue;
 				}
 				int sp = name.indexOf('/', 4);
-				String osArch;
+				String en2add;
 				if (sp > 0) {
-					 osArch = name.substring(4, sp).toLowerCase();
+					String osArch = name.substring(4, sp);
+					en2add=osArch.toLowerCase();
 				} else {
-					osArch=defaultArch;
+					en2add=defaultArch;
 				}
-				List<ZipEntry> alist = archLibEntries.get(osArch);
-				if (alist == null) {
-					alist = new LinkedList<ZipEntry>();
-					archLibEntries.put(osArch, alist);
+				List<ZipEntry> ents = archLibEntries.get(en2add);
+				if (ents == null) {
+					ents = new LinkedList<ZipEntry>();
+					archLibEntries.put(en2add, ents);
 				}
-				alist.add(entry);
+				ents.add(entry);
 			}
 		}
-		boolean rs = false;
 		String arch = System.getProperty("os.arch");
-		List<ZipEntry> alist = archLibEntries.get(arch.toLowerCase());
-		if (alist == null) {
-			alist = archLibEntries.get(defaultArch);
+		List<ZipEntry> libEntries = archLibEntries.get(arch.toLowerCase());
+		if (libEntries == null) {
+			libEntries = archLibEntries.get(defaultArch);
 		}
-		if (alist != null) {
-			rs = true;
+		boolean hasLib = false;
+		if (libEntries != null) {
+			hasLib = true;
 			if (!tardir.exists()) {
 				tardir.mkdirs();
 			}
-			for (ZipEntry libEntry : alist) {
+			for (ZipEntry libEntry : libEntries) {
 				String ename = libEntry.getName();
 				String pureName = ename.substring(ename.lastIndexOf('/') + 1);
 				File target = new File(tardir, pureName);
@@ -107,7 +109,7 @@ class PluginManifestUtil {
 			}
 		}
 		zip.close();
-		return rs;
+		return hasLib;
 	}
 	private static void setAttrs(PlugInfo info, String manifestXML)
 			throws XmlPullParserException, IOException {

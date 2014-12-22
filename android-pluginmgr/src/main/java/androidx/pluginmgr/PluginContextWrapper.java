@@ -22,22 +22,24 @@ class PluginContextWrapper extends ContextWrapper {
 	private PlugInfo plugin;
 	private static final String tag = "PluginContextWrapper";
 	private ApplicationInfo applicationInfo;
-
+	private File fileDir;
 	public PluginContextWrapper(Context base, PlugInfo plugin) {
 		super(base);
 		this.plugin = plugin;
-		applicationInfo = new ApplicationInfo(
-				plugin.getPackageInfo().applicationInfo);
+		applicationInfo = new ApplicationInfo(super.getApplicationInfo());
 		applicationInfo.sourceDir = plugin.getFilePath();
 		applicationInfo.dataDir = ActivityOverider.getPluginBaseDir(
 				plugin.getId()).getAbsolutePath();
+		fileDir = new File(ActivityOverider.getPluginBaseDir(plugin.getId())
+				.getAbsolutePath() + "/files/");
 	}
 
 	@Override
 	public File getFilesDir() {
-		File dir = super.getFilesDir();
-		Log.d(tag, "getFilesDir()=" + dir);
-		return dir;
+		if (!fileDir.exists()) {
+			fileDir.mkdirs();
+		}
+		return fileDir;
 	}
 
 	@Override
