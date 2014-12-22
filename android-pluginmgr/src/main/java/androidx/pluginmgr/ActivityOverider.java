@@ -159,9 +159,8 @@ public class ActivityOverider {
 	static File getPluginLibDir(PlugInfo plugin) {
 		String pluginPath = PluginManager.getInstance()
 				.getDexInternalStoragePath().getAbsolutePath();
-		String pluginDir = pluginPath + '/' + plugin.getId() + "-gen/lib/";
+		String pluginDir = pluginPath + '/' + plugin.getId() + "-dir/lib/";
 		File folder = new File(pluginDir);
-		folder.mkdirs();
 		return folder;
 	}
 	
@@ -169,7 +168,7 @@ public class ActivityOverider {
 		String actName = activity;
 		String pluginPath = PluginManager.getInstance()
 				.getDexInternalStoragePath().getAbsolutePath();
-		String pluginDir = pluginPath + '/' + plugin.getId() + "-gen/acts/";
+		String pluginDir = pluginPath + '/' + plugin.getId() + "-dir/acts/";
 		File folder = new File(pluginDir);
 		folder.mkdirs();
 		File saveDir = new File(folder, actName + ".dex");
