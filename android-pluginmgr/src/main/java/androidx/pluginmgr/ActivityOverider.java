@@ -155,23 +155,27 @@ public class ActivityOverider {
 		}
 		intent.setComponent(compname);
 	}
-
-	static File getPluginLibDir(PlugInfo plugin) {
+	
+	static File getPluginBaseDir(String pluginId) {
 		String pluginPath = PluginManager.getInstance()
 				.getDexInternalStoragePath().getAbsolutePath();
-		String pluginDir = pluginPath + '/' + plugin.getId() + "-dir/lib/";
+		String pluginDir = pluginPath + '/' + pluginId + "-dir/";
 		File folder = new File(pluginDir);
+		if(folder.exists()){
+			folder.mkdirs();
+		}
 		return folder;
 	}
 	
-	static File getPorxyActivityDexPath(PlugInfo plugin, String activity) {
-		String actName = activity;
-		String pluginPath = PluginManager.getInstance()
-				.getDexInternalStoragePath().getAbsolutePath();
-		String pluginDir = pluginPath + '/' + plugin.getId() + "-dir/acts/";
-		File folder = new File(pluginDir);
+	static File getPluginLibDir(String pluginId) {
+		File folder = new File(getPluginBaseDir(pluginId)+ "/lib/");
+		return folder;
+	}
+	
+	static File getPorxyActivityDexPath(String pluginId, String activity) {
+		File folder = new File(getPluginBaseDir(pluginId)+"/acts/");
 		folder.mkdirs();
-		File saveDir = new File(folder, actName + ".dex");
+		File saveDir = new File(folder, activity + ".dex");
 		return saveDir;
 	}
 
@@ -180,7 +184,7 @@ public class ActivityOverider {
 	}
 
 	static void createProxyDex(PlugInfo plugin, String activity, boolean lazy) {
-		File saveDir = getPorxyActivityDexPath(plugin, activity);
+		File saveDir = getPorxyActivityDexPath(plugin.getId(), activity);
 		createProxyDex(plugin, activity, saveDir, lazy);
 	}
 

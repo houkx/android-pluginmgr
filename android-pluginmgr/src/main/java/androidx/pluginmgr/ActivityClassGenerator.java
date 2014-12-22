@@ -286,47 +286,6 @@ class ActivityClassGenerator {
 		code.returnValue(localAsm);
 	}
 
-	/**
-	 * 生成以下代码：
-	 * 
-	 * <pre>
-	 * public Theme getTheme() {
-	 * 	Theme localTheme = this.thm;
-	 * 	if (localTheme == null) {
-	 * 		localTheme = super.getTheme();
-	 * 	}
-	 * 	return localTheme;
-	 * }
-	 * </pre>
-	 * 
-	 * @param dexMaker
-	 * @param generatedType
-	 * @param superType
-	 */
-
-	private static <S, D extends S> void declareMethod_getTheme(
-			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
-		TypeId<Theme> Theme = TypeId.get(Theme.class);
-		MethodId<D, Theme> getTheme = generatedType
-				.getMethod(Theme, "getTheme");
-		Code code = dexMaker.declare(getTheme, PUBLIC);
-		Local<D> localThis = code.getThis(generatedType);
-		Local<Theme> localTheme = code.newLocal(Theme);
-		Local<Theme> nullV = code.newLocal(Theme);
-		code.loadConstant(nullV, null);
-		FieldId<D, Theme> res = generatedType.getField(Theme, "thm");
-		code.iget(res, localTheme, localThis);
-		// codeBlock: if start
-		Label localThemeIsNull = new Label();
-		code.compare(Comparison.NE, localThemeIsNull, localTheme, nullV);
-		MethodId<S, Theme> superGetTheme = superType.getMethod(Theme,
-				"getTheme");
-		code.invokeSuper(superGetTheme, localTheme, localThis);
-		code.mark(localThemeIsNull);
-		// codeBlock: if end
-		code.returnValue(localTheme);
-	}
-
 	private static <S, D extends S> void declare_constructor(DexMaker dexMaker,
 			TypeId<D> generatedType, TypeId<S> superType) {
 		MethodId<D, Void> method = generatedType.getConstructor();

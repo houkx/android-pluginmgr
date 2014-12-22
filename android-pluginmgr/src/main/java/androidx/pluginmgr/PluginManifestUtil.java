@@ -47,7 +47,7 @@ class PluginManifestUtil {
 		// Log.d("ManifestReader: setManifestInfo", "GET_SHARED_LIBRARY_FILES="
 		// + pkgInfo.applicationInfo.nativeLibraryDir);
 		info.setPackageInfo(pkgInfo);
-		File libdir = ActivityOverider.getPluginLibDir(info);
+		File libdir = ActivityOverider.getPluginLibDir(info.getId());
 		if(extractLibFile(apkPath, libdir)){
 			pkgInfo.applicationInfo.nativeLibraryDir=libdir.getAbsolutePath();
 		}

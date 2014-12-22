@@ -7,6 +7,7 @@ import java.io.File;
 
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.pm.ApplicationInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.util.Log;
@@ -20,10 +21,16 @@ import android.util.Log;
 class PluginContextWrapper extends ContextWrapper {
 	private PlugInfo plugin;
 	private static final String tag = "PluginContextWrapper";
+	private ApplicationInfo applicationInfo;
 
 	public PluginContextWrapper(Context base, PlugInfo plugin) {
 		super(base);
 		this.plugin = plugin;
+		applicationInfo = new ApplicationInfo(
+				plugin.getPackageInfo().applicationInfo);
+		applicationInfo.sourceDir = plugin.getFilePath();
+		applicationInfo.dataDir = ActivityOverider.getPluginBaseDir(
+				plugin.getId()).getAbsolutePath();
 	}
 
 	@Override
@@ -31,6 +38,11 @@ class PluginContextWrapper extends ContextWrapper {
 		File dir = super.getFilesDir();
 		Log.d(tag, "getFilesDir()=" + dir);
 		return dir;
+	}
+
+	@Override
+	public ApplicationInfo getApplicationInfo() {
+		return applicationInfo;
 	}
 
 	@Override
@@ -42,7 +54,7 @@ class PluginContextWrapper extends ContextWrapper {
 	@Override
 	public String getPackageName() {
 		Log.d(tag, "getPackageName()");
-		return super.getPackageName();
+		return plugin.getPackageName();
 	}
 
 	@Override

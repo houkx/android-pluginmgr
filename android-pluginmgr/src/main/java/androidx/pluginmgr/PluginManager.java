@@ -19,7 +19,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
-import android.os.Looper;
 import android.util.Log;
 
 /**
@@ -319,10 +318,10 @@ public class PluginManager implements FileFilter {
 			String targetFileName) throws Exception {
 		PlugInfo info = new PlugInfo();
 		info.setId(pluginId == null ? pluginApk.getName() : pluginId);
-		info.setFilePath(pluginApk.getAbsolutePath());
 
 		File privateFile = new File(dexInternalStoragePath,
 				targetFileName == null ? pluginApk.getName() : targetFileName);
+		info.setFilePath(privateFile.getAbsolutePath());
 		if (!pluginApk.getAbsolutePath().equals(privateFile.getAbsolutePath())) {
 			copyApkToPrivatePath(pluginApk, privateFile);
 		}
