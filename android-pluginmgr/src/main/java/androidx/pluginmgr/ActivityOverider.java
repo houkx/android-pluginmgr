@@ -269,13 +269,11 @@ public class ActivityOverider {
 		
 		// setTheme
 		PlugInfo plugin = con.getPluginById(pluginId);
-		int themeResId = plugin.getPackageInfo().applicationInfo.theme;
-		Log.d(tag,"applicationTheme = "+themeResId);
+		String actName = fromAct.getClass().getSuperclass().getSimpleName();
+		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+		int themeResId = actInfo.theme;
 		if (themeResId == 0) {
-			String actName = fromAct.getClass().getSuperclass().getSimpleName();
-			ActivityInfo actInfo = plugin.findActivityByClassName(actName);
-			themeResId = actInfo.theme;
-			Log.d(tag, "activityTheme = " + themeResId);
+			themeResId = plugin.getPackageInfo().applicationInfo.theme;
 		}
 		if (themeResId != 0) {
 			fromAct.setTheme(themeResId);
