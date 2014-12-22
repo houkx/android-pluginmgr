@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
 
 		plugMgr = PluginManager.getInstance(this);
 
-		String pluginSrcDir = sdcard + "/Download";
+		String pluginSrcDir = sdcard + "/didi";
 		pluginDirTxt.setText(pluginSrcDir);
 
 		pluglistView.setOnItemClickListener(new OnItemClickListener() {

@@ -39,7 +39,7 @@ import com.google.dexmaker.TypeId;
  * 
  */
 class ActivityClassGenerator {
-
+    
 	public static void createActivityDex(String superClassName,
 			String targetClassName, File saveTo, String pluginId, String pkgName)
 			throws IOException {
@@ -84,7 +84,7 @@ class ActivityClassGenerator {
 		// 声明 方法：public Resources getResources()
 		declareMethod_getResources(dexMaker, generatedType, superType);
 		// 声明 方法：public Theme getTheme()
-		declareMethod_getTheme(dexMaker, generatedType, superType);
+//		declareMethod_getTheme(dexMaker, generatedType, superType);
 		/*
 		 * 声明 方法：startActivityForResult(Intent intent, int requestCode, Bundle
 		 * options)
@@ -139,7 +139,8 @@ class ActivityClassGenerator {
 	// methodCode.loadConstant(local, pkgName);
 	// methodCode.returnValue(local);
 	// }
-
+	public static final String FIELD_ASSERTMANAGER = "mAssertManager";
+	public static final String FIELD_RESOURCES = "mResources";
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private static <S, D extends S> void declareMethod_onCreate(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
@@ -149,14 +150,14 @@ class ActivityClassGenerator {
 		// private Theme thm;
 		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
 		TypeId<Resources> Resources = TypeId.get(Resources.class);
-		TypeId<Theme> Theme = TypeId.get(Theme.class);
+//		TypeId<Theme> Theme = TypeId.get(Theme.class);
 		FieldId<D, AssetManager> asm = generatedType.getField(AssetManager,
-				"asm");
+				FIELD_ASSERTMANAGER);
 		dexMaker.declare(asm, PRIVATE, null);
-		FieldId<D, Resources> res = generatedType.getField(Resources, "res");
+		FieldId<D, Resources> res = generatedType.getField(Resources, FIELD_RESOURCES);
 		dexMaker.declare(res, PRIVATE, null);
-		FieldId<D, Theme> thm = generatedType.getField(Theme, "thm");
-		dexMaker.declare(thm, PRIVATE, null);
+//		FieldId<D, Theme> thm = generatedType.getField(Theme, "thm");
+//		dexMaker.declare(thm, PRIVATE, null);
 		//
 		// 声明 方法：onCreate
 		TypeId<Bundle> Bundle = TypeId.get(Bundle.class);
@@ -177,8 +178,8 @@ class ActivityClassGenerator {
 		Local<DisplayMetrics> mtrc = methodCode.newLocal(DisplayMetrics);
 		Local<Configuration> cfg = methodCode.newLocal(Configuration);
 		Local<Resources> resLocal = methodCode.newLocal(Resources);
-		Local<Theme> localTheme = methodCode.newLocal(Theme);
-		Local<Theme> superTheme = methodCode.newLocal(Theme);
+//		Local<Theme> localTheme = methodCode.newLocal(Theme);
+//		Local<Theme> superTheme = methodCode.newLocal(Theme);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
 		// ActivityOverider:
 		// public static AssetManager getAssetManagerByActiviyClassName(String)
@@ -210,30 +211,33 @@ class ActivityClassGenerator {
 				AssetManager, DisplayMetrics, Configuration);
 		methodCode.newInstance(resLocal, res_constructor, localAsm, mtrc, cfg);
 		methodCode.iput(res, localThis, resLocal);
-		// thm = res.newTheme();
-		MethodId<Resources, Theme> newTheme = Resources.getMethod(Theme,
-				"newTheme");
-
-		methodCode.invokeVirtual(newTheme, localTheme, resLocal);
-		methodCode.iput(thm, localThis, localTheme);
-		// thm.setTo(super.getTheme());
-		MethodId super_getTheme = superType.getMethod(Theme, "getTheme");
-
-		methodCode.invokeSuper(super_getTheme, superTheme, localThis);
-		//
-		MethodId<Theme, Void> setTo = Theme.getMethod(TypeId.VOID, "setTo",
-				Theme);
-		methodCode.invokeVirtual(setTo, null, localTheme, superTheme);
-		// super.onCreate()
-		MethodId superMethod = superType.getMethod(TypeId.VOID, "onCreate",
-				Bundle);
-		methodCode.invokeSuper(superMethod, null, localThis, lcoalBundle);
-		// ActivityOverider.call_onCreate(_pluginId, this);
+//		// thm = res.newTheme();
+//		MethodId<Resources, Theme> newTheme = Resources.getMethod(Theme,
+//				"newTheme");
+//
+//		methodCode.invokeVirtual(newTheme, localTheme, resLocal);
+//		methodCode.iput(thm, localThis, localTheme);
+//		// thm.setTo(super.getTheme());
+//		MethodId super_getTheme = superType.getMethod(Theme, "getTheme");
+//
+//		methodCode.invokeSuper(super_getTheme, superTheme, localThis);
+//		//
+//		MethodId<Theme, Void> setTo = Theme.getMethod(TypeId.VOID, "setTo",
+//				Theme);
+//		methodCode.invokeVirtual(setTo, null, localTheme, superTheme);
+		
+		// ActivityOverider.callback_onCreate(_pluginId, this);
 		MethodId<ActivityOverider, Void> method_call_onCreate = ActivityOverider
 				.getMethod(TypeId.VOID, "callback_onCreate", TypeId.STRING,
 						TypeId.get(Activity.class));
 		methodCode
 				.invokeStatic(method_call_onCreate, null, pluginId, localThis);
+		
+		// super.onCreate()
+		MethodId superMethod = superType.getMethod(TypeId.VOID, "onCreate",
+				Bundle);
+		methodCode.invokeSuper(superMethod, null, localThis, lcoalBundle);
+	
 		methodCode.returnVoid();
 	}
 
@@ -247,7 +251,7 @@ class ActivityClassGenerator {
 		Local<Resources> localRes = code.newLocal(Resources);
 		Local<Resources> nullV = code.newLocal(Resources);
 		code.loadConstant(nullV, null);
-		FieldId<D, Resources> res = generatedType.getField(Resources, "res");
+		FieldId<D, Resources> res = generatedType.getField(Resources, FIELD_RESOURCES);
 		code.iget(res, localRes, localThis);
 		//
 		Label localResIsNull = new Label();
@@ -271,7 +275,7 @@ class ActivityClassGenerator {
 		Local<AssetManager> nullV = code.newLocal(AssetManager);
 		code.loadConstant(nullV, null);
 		FieldId<D, AssetManager> res = generatedType.getField(AssetManager,
-				"asm");
+				FIELD_ASSERTMANAGER);
 		code.iget(res, localAsm, localThis);
 		Label localAsmIsNull = new Label();
 		code.compare(Comparison.NE, localAsmIsNull, localAsm, nullV);

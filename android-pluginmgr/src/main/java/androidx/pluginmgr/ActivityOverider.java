@@ -204,6 +204,7 @@ public class ActivityOverider {
 		}
 	}
 
+	
 	/**
 	 * 按照pluginId寻找AssetManager
 	 * <p>
@@ -265,6 +266,21 @@ public class ActivityOverider {
 	//
 	public static void callback_onCreate(String pluginId, Activity fromAct) {
 		PluginManager con = PluginManager.getInstance();
+		
+		// setTheme
+		PlugInfo plugin = con.getPluginById(pluginId);
+		int themeResId = plugin.getPackageInfo().applicationInfo.theme;
+		Log.d(tag,"applicationTheme = "+themeResId);
+		if (themeResId == 0) {
+			String actName = fromAct.getClass().getSuperclass().getSimpleName();
+			ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+			themeResId = actInfo.theme;
+			Log.d(tag, "activityTheme = " + themeResId);
+		}
+		if (themeResId != 0) {
+			fromAct.setTheme(themeResId);
+		}
+		// invoke callback
 		PluginActivityLifeCycleCallback callback = con
 				.getPluginActivityLifeCycleCallback();
 		if (callback != null) {

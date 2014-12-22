@@ -68,42 +68,44 @@ class PluginClassLoader extends DexClassLoader {
 	}
 	
 	protected Object getClassLoadingLock(String name){
-		return name;
+		return name.hashCode();
 	}
-
+	
+    private  Class<?>  findByParent(String name,boolean throwEx)throws ClassNotFoundException{
+    	Class<?> c =null;
+    	try {
+			ClassLoader parent = getParent();
+			if (parent != null) {
+				if (parent.getClass() == FrameworkClassLoader.class) {
+					parent = parent.getParent();
+				}
+				if (parent != null) {
+					c = parent.loadClass(name);
+				}
+			}
+		} catch (ClassNotFoundException e) {
+			if(throwEx){
+				throw e;
+			}
+		}
+    	return c;
+    }
 	protected Class<?> loadClass(String name, boolean resolve)
 			throws ClassNotFoundException {
 		synchronized (getClassLoadingLock(name)) {
 			// First, check if the class has already been loaded
 			Class<?> c = findLoadedClass(name);
 			if (c == null) {
-//				long t0 = System.nanoTime();
-				try {
-					ClassLoader parent = getParent();
-					if (parent != null) {
-						if (parent.getClass() == FrameworkClassLoader.class) {
-							parent = parent.getParent();
-						}
-						if (parent != null) {
-							c = parent.loadClass(name);
-						}
-					}
-				} catch (ClassNotFoundException e) {
-					// ClassNotFoundException thrown if class not found
-					// from the non-null parent class loader
-				}
-
-				if (c == null) {
-					// If still not found, then invoke findClass in order
-					// to find the class.
-					// long t1 = System.nanoTime();
+				if(name.startsWith("android.support.")){
 					c = findClass(name);
-					//
-					// // this is the defining class loader; record the stats
-					// sun.misc.PerfCounter.getParentDelegationTime().addTime(t1
-					// - t0);
-					// sun.misc.PerfCounter.getFindClassTime().addElapsedTimeFrom(t1);
-					// sun.misc.PerfCounter.getFindClasses().increment();
+					if (c == null) {
+						c = findByParent(name, true);
+					}
+				}else{
+					c = findByParent(name, false);
+					if (c == null) {
+						c = findClass(name);
+					}
 				}
 			}
 			if (resolve) {
