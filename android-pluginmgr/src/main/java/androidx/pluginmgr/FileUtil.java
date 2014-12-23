@@ -1,5 +1,6 @@
 package androidx.pluginmgr;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -20,28 +21,18 @@ import java.nio.channels.ReadableByteChannel;
  */
 class FileUtil {
 
-	public static void writeToFile(InputStream data, File target) throws IOException {
-		FileOutputStream fo = null;
-		ReadableByteChannel src = null;
-		FileChannel out = null;
-		try {
-			src = Channels.newChannel(data);
-			fo = new FileOutputStream(target);
-			out = fo.getChannel();
-			out.transferFrom(src, 0, data.available());
-		} finally {
-			if (fo != null) {
-				fo.close();
-			}
-			if (src != null) {
-				src.close();
-			}
-			if (out != null) {
-				out.close();
-			}
-			data.close();
+	public static void writeToFile(InputStream dataIns, File target) throws IOException {
+		final int BUFFER = 1024;
+		BufferedOutputStream bos = new BufferedOutputStream(
+				new FileOutputStream(target));
+		int count;
+		byte data[] = new byte[BUFFER];
+		while ((count = dataIns.read(data, 0, BUFFER)) != -1) {
+			bos.write(data, 0, count);
 		}
+		bos.close(); 
 	}
+	
 	public static void writeToFile(byte[] data, File target) throws IOException {
 		FileOutputStream fo = null;
 		ReadableByteChannel src = null;

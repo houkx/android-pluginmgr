@@ -13,6 +13,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.res.AssetManager;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Window;
@@ -203,8 +204,33 @@ public class ActivityOverider {
 			Log.e(tag, Log.getStackTraceString(e));
 		}
 	}
-
-	
+	/*	
+	 *<pre> 
+	 *
+	      public PluginActivity(){
+		    this.mResources = ActivityOverider.getResources(_pluginId, this);
+		    this.mAssertManager = mResources.getAssets();
+		  }
+		  
+	      protected void onCreate(Bundle paramBundle){
+		     ActivityOverider.callback_onCreate(_pluginId, this);
+		     super.onCreate(paramBundle);
+		  }
+		  
+		  </pre>
+		  *
+		  */
+    //TODO 构造方法中返回 Resources，
+	// 自动生成的类中:
+	// this.mAssertManager = mResources.getAssets();
+	public static Resources getResources(String pluginId, Activity fromAct) {
+		PluginManager mgr = PluginManager.getInstance();
+		PlugInfo rsinfo = mgr.getPluginById(pluginId);
+		AssetManager assets = rsinfo.getAssetManager();
+		Resources frameworkRes = mgr.getContext().getResources();
+		Resources res = new Resources(assets, frameworkRes.getDisplayMetrics(), frameworkRes.getConfiguration());
+		return res;
+	}
 	/**
 	 * 按照pluginId寻找AssetManager
 	 * <p>

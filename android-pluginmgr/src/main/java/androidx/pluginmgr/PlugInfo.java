@@ -164,7 +164,7 @@ public class PlugInfo {
 	}
 	public void addActivity(ResolveInfo activity) {
 		activities.add(activity);
-		if (activity.filter != null
+		if (mainActivity == null && activity.filter != null
 				&& activity.filter.hasAction("android.intent.action.MAIN")) {
 			mainActivity = activity;
 		}

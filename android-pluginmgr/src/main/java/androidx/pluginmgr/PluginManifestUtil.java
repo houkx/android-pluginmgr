@@ -31,9 +31,14 @@ import android.content.pm.ResolveInfo;
  * 
  */
 class PluginManifestUtil {
-	static String setManifestInfo(Context context, String apkPath, PlugInfo info)
+	static void setManifestInfo(Context context, String apkPath, PlugInfo info)
 			throws XmlPullParserException, IOException {
-		String manifestXML = XmlManifestReader.getManifestXMLFromAPK(apkPath);
+		
+		ZipFile zipFile = new ZipFile(new File(apkPath), ZipFile.OPEN_READ);
+		ZipEntry manifestXmlEntry = zipFile.getEntry(XmlManifestReader.DEFAULT_XML);
+		
+		String manifestXML = XmlManifestReader.getManifestXMLFromAPK(zipFile,
+				manifestXmlEntry);
 		PackageInfo pkgInfo = context.getPackageManager()
 				.getPackageArchiveInfo(
 						apkPath,
@@ -49,17 +54,18 @@ class PluginManifestUtil {
 		// + pkgInfo.applicationInfo.nativeLibraryDir);
 		info.setPackageInfo(pkgInfo);
 		File libdir = ActivityOverider.getPluginLibDir(info.getId());
-		if(extractLibFile(apkPath, libdir)){
-			pkgInfo.applicationInfo.nativeLibraryDir=libdir.getAbsolutePath();
+		try {
+			if(extractLibFile(zipFile, libdir)){
+				pkgInfo.applicationInfo.nativeLibraryDir=libdir.getAbsolutePath();
+			}
+		} finally {
+			zipFile.close();
 		}
-		
 		setAttrs(info, manifestXML);
-		return info.getPackageInfo().packageName;
 	}
-	private static boolean extractLibFile(String apkPath, File tardir)
+	private static boolean extractLibFile(ZipFile zip, File tardir)
 			throws ZipException, IOException {
 		
-		ZipFile zip = new ZipFile(new File(apkPath));
 		
 		String defaultArch = "armeabi";
         Map<String,List<ZipEntry>> archLibEntries = new HashMap<String, List<ZipEntry>>();
@@ -108,7 +114,7 @@ class PluginManifestUtil {
 				FileUtil.writeToFile(zip.getInputStream(libEntry), target);
 			}
 		}
-		zip.close();
+		
 		return hasLib;
 	}
 	private static void setAttrs(PlugInfo info, String manifestXML)

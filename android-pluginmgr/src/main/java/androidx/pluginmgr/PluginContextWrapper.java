@@ -8,6 +8,7 @@ import java.io.File;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.util.Log;
@@ -40,6 +41,34 @@ class PluginContextWrapper extends ContextWrapper {
 			fileDir.mkdirs();
 		}
 		return fileDir;
+	}
+
+	@Override
+	public String getPackageResourcePath() {
+		// TODO Auto-generated method stub
+		Log.d(tag, "getPackageResourcePath()");
+		return super.getPackageResourcePath();
+	}
+
+	@Override
+	public String getPackageCodePath() {
+		// TODO Auto-generated method stub
+		Log.d(tag, "getPackageCodePath()");
+		return super.getPackageCodePath();
+	}
+
+	@Override
+	public File getCacheDir() {
+		// TODO Auto-generated method stub
+		Log.d(tag, "getCacheDir()");
+		return super.getCacheDir();
+	}
+
+	@Override
+	public PackageManager getPackageManager() {
+		// TODO Auto-generated method stub
+		Log.d(tag, "PackageManager()");
+		return super.getPackageManager();
 	}
 
 	@Override
