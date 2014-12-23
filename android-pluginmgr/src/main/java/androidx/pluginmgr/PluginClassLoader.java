@@ -97,7 +97,10 @@ class PluginClassLoader extends DexClassLoader {
 			Class<?> c = findLoadedClass(name);
 			if (c == null) {
 				if(name.startsWith("android.support.")){
-					c = findClass(name);
+					try {
+						c = findClass(name);
+					} catch (ClassNotFoundException e) {
+					}
 					if (c == null) {
 						c = findByParent(name, true);
 					}
