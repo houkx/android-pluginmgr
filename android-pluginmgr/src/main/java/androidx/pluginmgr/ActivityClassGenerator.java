@@ -19,7 +19,6 @@ import android.content.ServiceConnection;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.content.res.Resources.Theme;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 
@@ -69,14 +68,14 @@ class ActivityClassGenerator {
 				.get('L' + superClassName.replace('.', '/') + ';');
 		// 声明类
 		dexMaker.declare(generatedType, "", PUBLIC | FINAL, superType);
-		// 定义字段 private static final String _pluginId = @param{pluginId};
-		declareField_pluginId(dexMaker, generatedType, superType, pluginId);
-		// 声明 默认构造方法
-		declare_constructor(dexMaker, generatedType, superType);
-		// 声明 字段：
+		// 定义字段
+		//private static final String _pluginId = @param{pluginId};
 		// private AssetManager asm;
 		// private Resources res;
-		// private Theme thm;
+		declareFields(dexMaker, generatedType, superType, pluginId);
+		// 声明 默认构造方法
+		declare_constructor(dexMaker, generatedType, superType);
+	
 		// 声明 方法：onCreate
 		declareMethod_onCreate(dexMaker, generatedType, superType);
 		// 声明 方法：public AssetManager getAssets()
@@ -111,12 +110,20 @@ class ActivityClassGenerator {
 		return dex;
 	}
 
-	private static <S, D extends S> void declareField_pluginId(
+	private static <S, D extends S> void declareFields(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType,
 			String pluginId) {
 		FieldId<D, String> _pluginId = generatedType.getField(TypeId.STRING,
 				"_pluginId");
 		dexMaker.declare(_pluginId, PRIVATE | STATIC | FINAL, pluginId);
+		
+		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
+		TypeId<Resources> Resources = TypeId.get(Resources.class);
+		FieldId<D, AssetManager> asm = generatedType.getField(AssetManager,
+				FIELD_ASSERTMANAGER);
+		dexMaker.declare(asm, PRIVATE, null);
+		FieldId<D, Resources> res = generatedType.getField(Resources, FIELD_RESOURCES);
+		dexMaker.declare(res, PRIVATE, null);
 	}
 
 	// Note: 必须是最后一个Local变量处调用
@@ -144,20 +151,12 @@ class ActivityClassGenerator {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private static <S, D extends S> void declareMethod_onCreate(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
-		// 声明 字段：
-		// private AssetManager asm;
-		// private Resources res;
-		// private Theme thm;
 		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
 		TypeId<Resources> Resources = TypeId.get(Resources.class);
 //		TypeId<Theme> Theme = TypeId.get(Theme.class);
-		FieldId<D, AssetManager> asm = generatedType.getField(AssetManager,
+		FieldId<D, AssetManager> assertManager = generatedType.getField(AssetManager,
 				FIELD_ASSERTMANAGER);
-		dexMaker.declare(asm, PRIVATE, null);
-		FieldId<D, Resources> res = generatedType.getField(Resources, FIELD_RESOURCES);
-		dexMaker.declare(res, PRIVATE, null);
-//		FieldId<D, Theme> thm = generatedType.getField(Theme, "thm");
-//		dexMaker.declare(thm, PRIVATE, null);
+		FieldId<D, Resources> resources = generatedType.getField(Resources, FIELD_RESOURCES);
 		//
 		// 声明 方法：onCreate
 		TypeId<Bundle> Bundle = TypeId.get(Bundle.class);
@@ -182,13 +181,13 @@ class ActivityClassGenerator {
 //		Local<Theme> superTheme = methodCode.newLocal(Theme);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
 		// ActivityOverider:
-		// public static AssetManager getAssetManagerByActiviyClassName(String)
+		// public static AssetManager getAssetManager(String,Activity)
 		MethodId<ActivityOverider, AssetManager> methodOveride = ActivityOverider
 				.getMethod(AssetManager, "getAssetManager", TypeId.STRING,
 						TypeId.get(Activity.class));
 		//
 		methodCode.invokeStatic(methodOveride, localAsm, pluginId, localThis);
-		methodCode.iput(asm, localThis, localAsm);
+		methodCode.iput(assertManager, localThis, localAsm);
 		MethodId methodGetResources = superType.getMethod(Resources,
 				"getResources");
 		methodCode.invokeSuper(methodGetResources, superRes, localThis);
@@ -210,23 +209,8 @@ class ActivityClassGenerator {
 		MethodId<Resources, Void> res_constructor = Resources.getConstructor(
 				AssetManager, DisplayMetrics, Configuration);
 		methodCode.newInstance(resLocal, res_constructor, localAsm, mtrc, cfg);
-		methodCode.iput(res, localThis, resLocal);
-//		// thm = res.newTheme();
-//		MethodId<Resources, Theme> newTheme = Resources.getMethod(Theme,
-//				"newTheme");
-//
-//		methodCode.invokeVirtual(newTheme, localTheme, resLocal);
-//		methodCode.iput(thm, localThis, localTheme);
-//		// thm.setTo(super.getTheme());
-//		MethodId super_getTheme = superType.getMethod(Theme, "getTheme");
-//
-//		methodCode.invokeSuper(super_getTheme, superTheme, localThis);
-//		//
-//		MethodId<Theme, Void> setTo = Theme.getMethod(TypeId.VOID, "setTo",
-//				Theme);
-//		methodCode.invokeVirtual(setTo, null, localTheme, superTheme);
+		methodCode.iput(resources, localThis, resLocal);
 		
-		// ActivityOverider.callback_onCreate(_pluginId, this);
 		MethodId<ActivityOverider, Void> method_call_onCreate = ActivityOverider
 				.getMethod(TypeId.VOID, "callback_onCreate", TypeId.STRING,
 						TypeId.get(Activity.class));
