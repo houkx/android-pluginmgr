@@ -139,21 +139,12 @@ public class ActivityOverider {
 
 	private static void setPluginIntent(Intent intent, PlugInfo plugin,
 			String actName) {
-		String pkgName = null;
-		if (intent.getComponent() != null) {
-			pkgName = intent.getComponent().getPackageName();
-		}
 		PluginManager mgr = PluginManager.getInstance();
 		String pluginId = plugin.getId();
 		createProxyDex(plugin, actName);
 		String act = mgr.getFrameworkClassLoader().newActivityClassName(
 				pluginId, actName);
-		ComponentName compname = null;
-		if (pkgName != null) {
-			compname = new ComponentName(pkgName, act);
-		} else {
-			compname = new ComponentName(mgr.getContext(), act);
-		}
+		ComponentName compname = new ComponentName(mgr.getContext(), act);
 		intent.setComponent(compname);
 	}
 	static File getPluginBaseDir(String pluginId) {
