@@ -425,11 +425,11 @@ public class PluginManager implements FileFilter {
 		FileUtil.copyFile(pluginApk, f);
 	}
 
-	public File getDexInternalStoragePath() {
+	File getDexInternalStoragePath() {
 		return dexInternalStoragePath;
 	}
 
-	public Context getContext() {
+	Context getContext() {
 		return context;
 	}
 
