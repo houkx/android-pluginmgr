@@ -117,6 +117,7 @@ public class PluginManager implements FileFilter {
 		PlugInfo plug = preparePlugForStartActivity(context, plugIdOrPkg);
 		String className = frameworkClassLoader.newActivityClassName(
 				plug.getId(), actName);
+		Log.i(tag, "performStartActivity: "+actName);
 		ComponentName comp = new ComponentName(context, className);
 		intent.setAction(null);
 		intent.setComponent(comp);
