@@ -67,10 +67,16 @@ class PlugListViewAdapter extends BaseAdapter {
 		}
 		PlugInfo plug = datas.get(position);
 		{
-			CharSequence label = plug.getPackageInfo().applicationInfo
-					.loadLabel(mContext.getPackageManager());
-			if (label != null) {
+			int labelRes =plug.getPackageInfo().applicationInfo.labelRes;
+			if (labelRes != 0) {
+				String label = plug.getResources().getString(labelRes);
 				mViewHolder.title.setText(label);
+			} else{
+				CharSequence label = plug.getPackageInfo().applicationInfo
+						.loadLabel(mContext.getPackageManager());
+				if (label != null) {
+					mViewHolder.title.setText(label);
+				}
 			}
 		}
 		SoftReference<Drawable> imgref = imageCache.get(plug.getId());
