@@ -65,8 +65,13 @@ class PlugListViewAdapter extends BaseAdapter {
 			mViewHolder = (ViewHolder) convertView.getTag();
 		}
 		PlugInfo plug = datas.get(position);
-		String title = plug.getResources().getString(plug.getPackageInfo().applicationInfo.labelRes);
-		mViewHolder.title.setText(title);
+		{
+			int labelRes = plug.getPackageInfo().applicationInfo.labelRes;
+			if(labelRes!=0){
+				String title = plug.getResources().getString(labelRes);
+				mViewHolder.title.setText(title);
+			}
+		}
 		SoftReference<Drawable> imgref = imageCache.get(plug.getId());
 		Drawable drawable;
 		if (imgref != null) {
