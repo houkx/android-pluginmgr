@@ -22,8 +22,9 @@ class PlugListViewAdapter extends BaseAdapter {
 
 	private LayoutInflater inflater = null;
 	private List<PlugInfo> datas;
-	
+	private Context mContext;
 	public PlugListViewAdapter(Context context, Collection<PlugInfo> datas) {
+		mContext = context;
 		inflater = LayoutInflater.from(context);
 		this.datas = new ArrayList<PlugInfo>(datas);
 	}
@@ -66,10 +67,10 @@ class PlugListViewAdapter extends BaseAdapter {
 		}
 		PlugInfo plug = datas.get(position);
 		{
-			int labelRes = plug.getPackageInfo().applicationInfo.labelRes;
-			if(labelRes!=0){
-				String title = plug.getResources().getString(labelRes);
-				mViewHolder.title.setText(title);
+			CharSequence label = plug.getPackageInfo().applicationInfo
+					.loadLabel(mContext.getPackageManager());
+			if (label != null) {
+				mViewHolder.title.setText(label);
 			}
 		}
 		SoftReference<Drawable> imgref = imageCache.get(plug.getId());
