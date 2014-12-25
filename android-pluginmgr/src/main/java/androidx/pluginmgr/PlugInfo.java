@@ -165,7 +165,9 @@ public class PlugInfo {
 	public void addActivity(ResolveInfo activity) {
 		activities.add(activity);
 		if (mainActivity == null && activity.filter != null
-				&& activity.filter.hasAction("android.intent.action.MAIN")) {
+				&& activity.filter.hasAction("android.intent.action.MAIN")
+				&& activity.filter.hasCategory("android.intent.category.LAUNCHER")
+				) {
 			mainActivity = activity;
 		}
 	}
