@@ -6,8 +6,8 @@ package androidx.pluginmgr;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -231,27 +231,26 @@ public class PluginManager implements FileFilter {
 	}
 
 	/**
-	 * 加载指定目录下的所有插件
+	 * 加载指定插件或指定目录下的所有插件
 	 * <p>
 	 * 都使用文件名作为Id
 	 * 
 	 * @param pluginSrcDirFile
-	 *            - apk目录
-	 * @return 插件数目
+	 *            - apk或apk目录
+	 * @return 插件集合
 	 * @throws Exception
 	 */
 	public Collection<PlugInfo> loadPlugin(final File pluginSrcDirFile)
 			throws Exception {
 		checkInit();
 		if (pluginSrcDirFile == null || !pluginSrcDirFile.exists()) {
-			Log.e(tag, "invalidate pluginDir :"+pluginSrcDirFile);
+			Log.e(tag, "invalidate plugin file or Directory :"+pluginSrcDirFile);
 			return null;
 		}
 		if (pluginSrcDirFile.isFile()) {
-			ArrayList<PlugInfo> list = new ArrayList<PlugInfo>(1);
+			// 如果是文件则尝试加载单个插件，暂不检查文件类型，除apk外，以后可能支持加载其他类型文件,如jar
 			PlugInfo one = loadPluginWithId(pluginSrcDirFile, null, null);
-			list.add(one);
-			return list;
+			return Collections.singletonList(one);
 		}
 		// clear all first
 		synchronized (this) {
