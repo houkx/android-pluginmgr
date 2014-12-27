@@ -1,11 +1,8 @@
 package androidx.plmgrdemo;
 
-import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
@@ -44,7 +41,6 @@ class PlugListViewAdapter extends BaseAdapter {
 		return datas.get(position).getId().hashCode();
 	}
 
-	private Map<String, SoftReference<Drawable>> imageCache = new HashMap<String, SoftReference<Drawable>>();
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent) {
 		ViewHolder mViewHolder = null;
@@ -79,15 +75,8 @@ class PlugListViewAdapter extends BaseAdapter {
 				}
 			}
 		}
-		SoftReference<Drawable> imgref = imageCache.get(plug.getId());
-		Drawable drawable;
-		if (imgref != null) {
-			drawable = imgref.get();
-		} else {
-			drawable = plug.getResources().getDrawable(
-					plug.getPackageInfo().applicationInfo.icon);
-			imageCache.put(plug.getId(), new SoftReference<Drawable>(drawable));
-		}
+		Drawable drawable = plug.getResources().getDrawable(
+				plug.getPackageInfo().applicationInfo.icon);
 		mViewHolder.icon.setImageDrawable(drawable);
 		String descText;
 		int descId = plug.getPackageInfo().applicationInfo.descriptionRes;
