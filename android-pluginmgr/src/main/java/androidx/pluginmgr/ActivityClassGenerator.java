@@ -50,7 +50,9 @@ import com.google.dexmaker.TypeId;
  * 
  */
 class ActivityClassGenerator {
-    
+	private static final String FIELD_ASSERTMANAGER = "mAssertManager";
+	private static final String FIELD_RESOURCES = "mResources";
+	
 	public static void createActivityDex(String superClassName,
 			String targetClassName, File saveTo, String pluginId, String pkgName)
 			throws IOException {
@@ -94,8 +96,6 @@ class ActivityClassGenerator {
 		declareMethod_getAssets(dexMaker, generatedType, superType);
 		// 声明 方法：public Resources getResources()
 		declareMethod_getResources(dexMaker, generatedType, superType);
-		// 声明 方法：public Theme getTheme()
-//		declareMethod_getTheme(dexMaker, generatedType, superType);
 		/*
 		 * 声明 方法：startActivityForResult(Intent intent, int requestCode, Bundle
 		 * options)
@@ -158,8 +158,7 @@ class ActivityClassGenerator {
 	// methodCode.loadConstant(local, pkgName);
 	// methodCode.returnValue(local);
 	// }
-	public static final String FIELD_ASSERTMANAGER = "mAssertManager";
-	public static final String FIELD_RESOURCES = "mResources";
+	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private static <S, D extends S> void declareMethod_onCreate(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
