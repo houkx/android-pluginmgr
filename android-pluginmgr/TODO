@@ -1,0 +1,6 @@
+1 PackageManager , meta-data, provider
+2 inner & outer ClassLoader
+3 load class with extra parameter such as pluginId, think java.lang.String in android
+4 framework with android.support
+5 android ui thread init plug application
+6 service support

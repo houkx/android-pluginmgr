@@ -1,26 +1,38 @@
-/**
- * 
+/*
+ * Copyright (C) 2015 HouKx <hkx.aidream@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package androidx.pluginmgr;
 
 import static java.lang.reflect.Modifier.FINAL;
 import static java.lang.reflect.Modifier.PRIVATE;
-import static java.lang.reflect.Modifier.STATIC;
 import static java.lang.reflect.Modifier.PROTECTED;
 import static java.lang.reflect.Modifier.PUBLIC;
+import static java.lang.reflect.Modifier.STATIC;
 
 import java.io.File;
 import java.io.IOException;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.content.res.Resources.Theme;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
-import androidx.pluginmgr.ActivityOverider;
 
 import com.google.dexmaker.Code;
 import com.google.dexmaker.Comparison;
@@ -38,7 +50,7 @@ import com.google.dexmaker.TypeId;
  * 
  */
 class ActivityClassGenerator {
-
+    
 	public static void createActivityDex(String superClassName,
 			String targetClassName, File saveTo, String pluginId, String pkgName)
 			throws IOException {
@@ -68,14 +80,14 @@ class ActivityClassGenerator {
 				.get('L' + superClassName.replace('.', '/') + ';');
 		// 声明类
 		dexMaker.declare(generatedType, "", PUBLIC | FINAL, superType);
-		// 定义字段 private static final String _pluginId = @param{pluginId};
-		declareField_pluginId(dexMaker, generatedType, superType, pluginId);
-		// 声明 默认构造方法
-		declare_constructor(dexMaker, generatedType, superType);
-		// 声明 字段：
+		// 定义字段
+		//private static final String _pluginId = @param{pluginId};
 		// private AssetManager asm;
 		// private Resources res;
-		// private Theme thm;
+		declareFields(dexMaker, generatedType, superType, pluginId);
+		// 声明 默认构造方法
+		declare_constructor(dexMaker, generatedType, superType);
+	
 		// 声明 方法：onCreate
 		declareMethod_onCreate(dexMaker, generatedType, superType);
 		// 声明 方法：public AssetManager getAssets()
@@ -83,14 +95,19 @@ class ActivityClassGenerator {
 		// 声明 方法：public Resources getResources()
 		declareMethod_getResources(dexMaker, generatedType, superType);
 		// 声明 方法：public Theme getTheme()
-		declareMethod_getTheme(dexMaker, generatedType, superType);
+//		declareMethod_getTheme(dexMaker, generatedType, superType);
 		/*
 		 * 声明 方法：startActivityForResult(Intent intent, int requestCode, Bundle
 		 * options)
-		 */declareMethod_startActivityForResult(dexMaker, generatedType,
-				superType);
+		 */
+		declareMethod_startActivityForResult(dexMaker, generatedType,superType);
 		// 声明 方法：public void onBackPressed()
 		declareMethod_onBackPressed(dexMaker, generatedType, superType);
+		
+		declareMethod_startService(dexMaker, generatedType, superType);
+		declareMethod_bindService(dexMaker, generatedType, superType);
+		declareMethod_unbindService(dexMaker, generatedType, superType);
+		declareMethod_stopService(dexMaker, generatedType, superType);
 		// declareMethod_getPackageName(dexMaker, generatedType, superType,
 		// pkgName);
 		// Create the dex Content
@@ -105,12 +122,20 @@ class ActivityClassGenerator {
 		return dex;
 	}
 
-	private static <S, D extends S> void declareField_pluginId(
+	private static <S, D extends S> void declareFields(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType,
 			String pluginId) {
 		FieldId<D, String> _pluginId = generatedType.getField(TypeId.STRING,
 				"_pluginId");
 		dexMaker.declare(_pluginId, PRIVATE | STATIC | FINAL, pluginId);
+		
+		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
+		TypeId<Resources> Resources = TypeId.get(Resources.class);
+		FieldId<D, AssetManager> asm = generatedType.getField(AssetManager,
+				FIELD_ASSERTMANAGER);
+		dexMaker.declare(asm, PRIVATE, null);
+		FieldId<D, Resources> res = generatedType.getField(Resources, FIELD_RESOURCES);
+		dexMaker.declare(res, PRIVATE, null);
 	}
 
 	// Note: 必须是最后一个Local变量处调用
@@ -133,24 +158,17 @@ class ActivityClassGenerator {
 	// methodCode.loadConstant(local, pkgName);
 	// methodCode.returnValue(local);
 	// }
-
+	public static final String FIELD_ASSERTMANAGER = "mAssertManager";
+	public static final String FIELD_RESOURCES = "mResources";
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private static <S, D extends S> void declareMethod_onCreate(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
-		// 声明 字段：
-		// private AssetManager asm;
-		// private Resources res;
-		// private Theme thm;
 		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
 		TypeId<Resources> Resources = TypeId.get(Resources.class);
-		TypeId<Theme> Theme = TypeId.get(Theme.class);
-		FieldId<D, AssetManager> asm = generatedType.getField(AssetManager,
-				"asm");
-		dexMaker.declare(asm, PRIVATE, null);
-		FieldId<D, Resources> res = generatedType.getField(Resources, "res");
-		dexMaker.declare(res, PRIVATE, null);
-		FieldId<D, Theme> thm = generatedType.getField(Theme, "thm");
-		dexMaker.declare(thm, PRIVATE, null);
+//		TypeId<Theme> Theme = TypeId.get(Theme.class);
+		FieldId<D, AssetManager> assertManager = generatedType.getField(AssetManager,
+				FIELD_ASSERTMANAGER);
+		FieldId<D, Resources> resources = generatedType.getField(Resources, FIELD_RESOURCES);
 		//
 		// 声明 方法：onCreate
 		TypeId<Bundle> Bundle = TypeId.get(Bundle.class);
@@ -171,17 +189,17 @@ class ActivityClassGenerator {
 		Local<DisplayMetrics> mtrc = methodCode.newLocal(DisplayMetrics);
 		Local<Configuration> cfg = methodCode.newLocal(Configuration);
 		Local<Resources> resLocal = methodCode.newLocal(Resources);
-		Local<Theme> localTheme = methodCode.newLocal(Theme);
-		Local<Theme> superTheme = methodCode.newLocal(Theme);
+//		Local<Theme> localTheme = methodCode.newLocal(Theme);
+//		Local<Theme> superTheme = methodCode.newLocal(Theme);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
 		// ActivityOverider:
-		// public static AssetManager getAssetManagerByActiviyClassName(String)
+		// public static AssetManager getAssetManager(String,Activity)
 		MethodId<ActivityOverider, AssetManager> methodOveride = ActivityOverider
 				.getMethod(AssetManager, "getAssetManager", TypeId.STRING,
 						TypeId.get(Activity.class));
 		//
 		methodCode.invokeStatic(methodOveride, localAsm, pluginId, localThis);
-		methodCode.iput(asm, localThis, localAsm);
+		methodCode.iput(assertManager, localThis, localAsm);
 		MethodId methodGetResources = superType.getMethod(Resources,
 				"getResources");
 		methodCode.invokeSuper(methodGetResources, superRes, localThis);
@@ -203,31 +221,19 @@ class ActivityClassGenerator {
 		MethodId<Resources, Void> res_constructor = Resources.getConstructor(
 				AssetManager, DisplayMetrics, Configuration);
 		methodCode.newInstance(resLocal, res_constructor, localAsm, mtrc, cfg);
-		methodCode.iput(res, localThis, resLocal);
-		// thm = res.newTheme();
-		MethodId<Resources, Theme> newTheme = Resources.getMethod(Theme,
-				"newTheme");
-
-		methodCode.invokeVirtual(newTheme, localTheme, resLocal);
-		methodCode.iput(thm, localThis, localTheme);
-		// thm.setTo(super.getTheme());
-		MethodId super_getTheme = superType.getMethod(Theme, "getTheme");
-
-		methodCode.invokeSuper(super_getTheme, superTheme, localThis);
-		//
-		MethodId<Theme, Void> setTo = Theme.getMethod(TypeId.VOID, "setTo",
-				Theme);
-		methodCode.invokeVirtual(setTo, null, localTheme, superTheme);
-		// super.onCreate()
-		MethodId superMethod = superType.getMethod(TypeId.VOID, "onCreate",
-				Bundle);
-		methodCode.invokeSuper(superMethod, null, localThis, lcoalBundle);
-		// ActivityOverider.call_onCreate(_pluginId, this);
+		methodCode.iput(resources, localThis, resLocal);
+		
 		MethodId<ActivityOverider, Void> method_call_onCreate = ActivityOverider
 				.getMethod(TypeId.VOID, "callback_onCreate", TypeId.STRING,
 						TypeId.get(Activity.class));
 		methodCode
 				.invokeStatic(method_call_onCreate, null, pluginId, localThis);
+		
+		// super.onCreate()
+		MethodId superMethod = superType.getMethod(TypeId.VOID, "onCreate",
+				Bundle);
+		methodCode.invokeSuper(superMethod, null, localThis, lcoalBundle);
+	
 		methodCode.returnVoid();
 	}
 
@@ -241,7 +247,7 @@ class ActivityClassGenerator {
 		Local<Resources> localRes = code.newLocal(Resources);
 		Local<Resources> nullV = code.newLocal(Resources);
 		code.loadConstant(nullV, null);
-		FieldId<D, Resources> res = generatedType.getField(Resources, "res");
+		FieldId<D, Resources> res = generatedType.getField(Resources, FIELD_RESOURCES);
 		code.iget(res, localRes, localThis);
 		//
 		Label localResIsNull = new Label();
@@ -265,7 +271,7 @@ class ActivityClassGenerator {
 		Local<AssetManager> nullV = code.newLocal(AssetManager);
 		code.loadConstant(nullV, null);
 		FieldId<D, AssetManager> res = generatedType.getField(AssetManager,
-				"asm");
+				FIELD_ASSERTMANAGER);
 		code.iget(res, localAsm, localThis);
 		Label localAsmIsNull = new Label();
 		code.compare(Comparison.NE, localAsmIsNull, localAsm, nullV);
@@ -274,47 +280,6 @@ class ActivityClassGenerator {
 		code.invokeSuper(superGetAssetManager, localAsm, localThis);
 		code.mark(localAsmIsNull);
 		code.returnValue(localAsm);
-	}
-
-	/**
-	 * 生成以下代码：
-	 * 
-	 * <pre>
-	 * public Theme getTheme() {
-	 * 	Theme localTheme = this.thm;
-	 * 	if (localTheme == null) {
-	 * 		localTheme = super.getTheme();
-	 * 	}
-	 * 	return localTheme;
-	 * }
-	 * </pre>
-	 * 
-	 * @param dexMaker
-	 * @param generatedType
-	 * @param superType
-	 */
-
-	private static <S, D extends S> void declareMethod_getTheme(
-			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
-		TypeId<Theme> Theme = TypeId.get(Theme.class);
-		MethodId<D, Theme> getTheme = generatedType
-				.getMethod(Theme, "getTheme");
-		Code code = dexMaker.declare(getTheme, PUBLIC);
-		Local<D> localThis = code.getThis(generatedType);
-		Local<Theme> localTheme = code.newLocal(Theme);
-		Local<Theme> nullV = code.newLocal(Theme);
-		code.loadConstant(nullV, null);
-		FieldId<D, Theme> res = generatedType.getField(Theme, "thm");
-		code.iget(res, localTheme, localThis);
-		// codeBlock: if start
-		Label localThemeIsNull = new Label();
-		code.compare(Comparison.NE, localThemeIsNull, localTheme, nullV);
-		MethodId<S, Theme> superGetTheme = superType.getMethod(Theme,
-				"getTheme");
-		code.invokeSuper(superGetTheme, localTheme, localThis);
-		code.mark(localThemeIsNull);
-		// codeBlock: if end
-		code.returnValue(localTheme);
 	}
 
 	private static <S, D extends S> void declare_constructor(DexMaker dexMaker,
@@ -339,18 +304,22 @@ class ActivityClassGenerator {
 		TypeId<ActivityOverider> ActivityOverider = TypeId
 				.get(ActivityOverider.class);
 		MethodId<ActivityOverider, Intent> methodOveride = ActivityOverider
-				.getMethod(intent, "newIntent", intent, requestCode, bundle,
-						TypeId.STRING, TypeId.get(Activity.class));
+				.getMethod(intent, "overrideStartActivityForResult",
+						TypeId.get(Activity.class),TypeId.STRING,
+						intent, requestCode, bundle);
 		// locals
 		Local<D> localThis = methodCode.getThis(generatedType);
 		Local<Intent> newIntent = methodCode.newLocal(intent);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
 
-		methodCode.invokeStatic(methodOveride, newIntent//
+		methodCode.invokeStatic(methodOveride,
+				newIntent//
+				,localThis
+				, pluginId
 				, methodCode.getParameter(0, intent)//
 				, methodCode.getParameter(1, requestCode)//
 				, methodCode.getParameter(2, bundle)//
-				, pluginId, localThis);
+				);
 		// super.startActivityForResult(...)
 		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID,
 				"startActivityForResult", intent, requestCode, bundle);
@@ -368,7 +337,7 @@ class ActivityClassGenerator {
 	 * 
 	 * <pre>
 	 * public void onBackPressed() {
-	 * 	if (ActivityOverider.overideOnbackPressed(pluginId, this)) {
+	 * 	if (ActivityOverider.overrideOnbackPressed(this, pluginId)) {
 	 * 		super.onBackPressed();
 	 * 	}
 	 * }
@@ -395,9 +364,9 @@ class ActivityClassGenerator {
 		methodCode.loadConstant(localFalse, false);
 
 		MethodId<ActivityOverider, Boolean> methodOveride = ActivityOverider
-				.getMethod(TypeId.BOOLEAN, "overideOnbackPressed",
-						TypeId.STRING, TypeId.get(Activity.class));
-		methodCode.invokeStatic(methodOveride, localBool, pluginId, localThis);
+				.getMethod(TypeId.BOOLEAN, "overrideOnbackPressed"
+						, TypeId.get(Activity.class), TypeId.STRING);
+		methodCode.invokeStatic(methodOveride, localBool, localThis, pluginId);
 		// codeBlock: if start
 		Label localBool_isInvokeSuper = new Label();
 		methodCode.compare(Comparison.EQ, localBool_isInvokeSuper, localBool,
@@ -409,7 +378,116 @@ class ActivityClassGenerator {
 		// codeBlock: if end
 		methodCode.returnVoid();
 	}
-
+	
+	private static <S, D extends S> void declareMethod_startService(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
+		TypeId<ActivityOverider> ActivityOverider = TypeId
+				.get(ActivityOverider.class);
+		TypeId<ComponentName> returnType = TypeId.get(ComponentName.class);
+		TypeId<Intent> Intent = TypeId.get(Intent.class);
+		MethodId<D, ComponentName> method = generatedType.getMethod(returnType,
+				"startService",Intent);
+		MethodId<ActivityOverider, ComponentName> methodOveride = ActivityOverider
+				.getMethod(returnType, "overrideStartService"
+						,TypeId.get(Activity.class),TypeId.STRING
+						,Intent);
+		Code methodCode = dexMaker.declare(method, PUBLIC);
+		// locals
+		Local<D> localThis = methodCode.getThis(generatedType);
+		Local<ComponentName> localComponentName = methodCode.newLocal(returnType);
+		Local<String> pluginId = get_pluginId(generatedType, methodCode);
+		
+		methodCode.invokeStatic(methodOveride,
+				localComponentName//
+				,localThis, pluginId
+				, methodCode.getParameter(0, Intent)
+				);
+		methodCode.returnValue(localComponentName);
+	}
+	
+	private static <S, D extends S> void declareMethod_bindService(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
+		//boolean bindService(intent, conn, flags);
+		TypeId<ActivityOverider> ActivityOverider = TypeId
+				.get(ActivityOverider.class);
+		TypeId<Boolean> returnType = TypeId.BOOLEAN;
+		TypeId<Intent> Intent = TypeId.get(Intent.class);
+		TypeId<ServiceConnection> Conn = TypeId.get(ServiceConnection.class);
+		MethodId<D, Boolean> method = generatedType.getMethod(returnType,
+				"bindService",Intent,Conn,TypeId.INT);
+		MethodId<ActivityOverider, Boolean> methodOveride = ActivityOverider
+				.getMethod(returnType, "overrideBindService"
+						,TypeId.get(Activity.class),TypeId.STRING
+						,Intent,Conn,TypeId.INT);
+		Code methodCode = dexMaker.declare(method, PUBLIC);
+		// locals
+		Local<D> localThis = methodCode.getThis(generatedType);
+		Local<Boolean> localBool = methodCode.newLocal(returnType);
+		Local<String> pluginId = get_pluginId(generatedType, methodCode);
+		
+		methodCode.invokeStatic(methodOveride,
+				localBool//
+				,localThis, pluginId
+				, methodCode.getParameter(0, Intent)
+				, methodCode.getParameter(1, Conn)
+				, methodCode.getParameter(2, TypeId.INT)
+				);
+		methodCode.returnValue(localBool);
+	}
+	
+	private static <S, D extends S> void declareMethod_unbindService(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
+		//void unbindService( conn);
+		TypeId<ActivityOverider> ActivityOverider = TypeId
+				.get(ActivityOverider.class);
+		TypeId<ServiceConnection> Conn = TypeId.get(ServiceConnection.class);
+		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
+				"unbindService",Conn);
+		MethodId<ActivityOverider, Void> methodOveride = ActivityOverider
+				.getMethod(TypeId.VOID, "overrideUnbindService"
+						,TypeId.get(Activity.class),TypeId.STRING
+						,Conn);
+		Code methodCode = dexMaker.declare(method, PUBLIC);
+		// locals
+		Local<D> localThis = methodCode.getThis(generatedType);
+		Local<String> pluginId = get_pluginId(generatedType, methodCode);
+		
+		methodCode.invokeStatic(methodOveride,
+				null//
+				,localThis, pluginId
+				, methodCode.getParameter(0, Conn)
+				);
+		methodCode.returnVoid();
+	}
+	
+	private static <S, D extends S> void declareMethod_stopService(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
+		//boolean stopService(intent);
+		TypeId<ActivityOverider> ActivityOverider = TypeId
+				.get(ActivityOverider.class);
+		TypeId<Boolean> returnType = TypeId.BOOLEAN;
+		TypeId<Intent> Intent = TypeId.get(Intent.class);
+		//
+		MethodId<D, Boolean> method = generatedType.getMethod(returnType,
+				"stopService",Intent);
+		MethodId<ActivityOverider, Boolean> methodOveride = ActivityOverider
+				.getMethod(returnType, "overrideStopService"
+						,TypeId.get(Activity.class),TypeId.STRING
+						,Intent);
+		Code methodCode = dexMaker.declare(method, PUBLIC);
+		// locals
+		Local<D> localThis = methodCode.getThis(generatedType);
+		Local<Boolean> localBool = methodCode.newLocal(returnType);
+		Local<String> pluginId = get_pluginId(generatedType, methodCode);
+		
+		methodCode.invokeStatic(methodOveride,
+				localBool//
+				,localThis, pluginId
+				, methodCode.getParameter(0, Intent)
+				);
+		methodCode.returnValue(localBool);
+	}
+	
 	private static <S, D extends S> void declareLifeCyleMethod(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType,
 			String methodName) {

@@ -1,5 +1,17 @@
-/**
- * 
+/*
+ * Copyright (C) 2015 HouKx <hkx.aidream@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package androidx.pluginmgr;
 
@@ -10,6 +22,7 @@ import android.app.Application;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.ResolveInfo;
+import android.content.pm.ServiceInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 
@@ -27,7 +40,7 @@ public class PlugInfo {
 	private String filePath;
 	private PackageInfo packageInfo;
 	private List<ResolveInfo> activities = new ArrayList<ResolveInfo>();
-	private List<ResolveInfo> mainActivities = new ArrayList<ResolveInfo>();
+	private ResolveInfo mainActivity;
 	private List<ResolveInfo> services;
 	private List<ResolveInfo> receivers;
 	private List<ResolveInfo> providers;
@@ -62,14 +75,19 @@ public class PlugInfo {
 		if (act == null) {
 			return false;
 		}
-		return containsFlag(getFlags(act), FLAG_FinishActivityOnbackPressed);
+		int flags = getFlags(act);
+		return containsFlag(flags, FLAG_FinishActivityOnbackPressed);
 	}
 
 	public boolean isInvokeSuperOnbackPressed(ActivityInfo act) {
 		if (act == null) {
 			return true;
 		}
-		return containsFlag(getFlags(act), FLAG_INVOKE_SUPER_ONBACKPRESSED);
+		int flags = getFlags(act);
+		if (flags == 0) {
+			return true;//默认true
+		}
+		return containsFlag(flags, FLAG_INVOKE_SUPER_ONBACKPRESSED);
 	}
 
 	public void setInvokeSuperOnbackPressed(ActivityInfo act,
@@ -121,24 +139,48 @@ public class PlugInfo {
 		return null;
 	}
 
-	public ActivityInfo findReceiverByClassName(String actName) {
+	public ActivityInfo findReceiverByClassName(String className) {
 		if (packageInfo.receivers == null) {
 			return null;
 		}
 		for (ActivityInfo receiver : packageInfo.receivers) {
-			if (receiver.name.equals(actName)) {
+			if (receiver.name.equals(className)) {
 				return receiver;
 			}
 		}
 		return null;
 
 	}
-
+	public ServiceInfo findServiceByClassName(String className) {
+		if (packageInfo.services == null) {
+			return null;
+		}
+		for (ServiceInfo service : packageInfo.services) {
+			if (service.name.equals(className)) {
+				return service;
+			}
+		}
+		return null;
+		
+	}
+	public ServiceInfo findServiceByAction(String action) {
+		if (services == null || services.isEmpty()) {
+			return null;
+		}
+		for (ResolveInfo ser : services) {
+			if (ser.filter != null && ser.filter.hasAction(action)) {
+				return ser.serviceInfo;
+			}
+		}
+		return null;
+	}
 	public void addActivity(ResolveInfo activity) {
 		activities.add(activity);
-		if (activity.filter != null
-				&& activity.filter.hasAction("android.intent.action.MAIN")) {
-			mainActivities.add(activity);
+		if (mainActivity == null && activity.filter != null
+				&& activity.filter.hasAction("android.intent.action.MAIN")
+				&& activity.filter.hasCategory("android.intent.category.LAUNCHER")
+				) {
+			mainActivity = activity;
 		}
 	}
 
@@ -147,6 +189,13 @@ public class PlugInfo {
 			receivers = new ArrayList<ResolveInfo>();
 		}
 		receivers.add(receiver);
+	}
+	
+	public void addService(ResolveInfo service) {
+		if (services == null) {
+			services = new ArrayList<ResolveInfo>();
+		}
+		services.add(service);
 	}
 
 	public String getId() {
@@ -217,10 +266,6 @@ public class PlugInfo {
 		return activities;
 	}
 
-	public List<ResolveInfo> getMainActivities() {
-		return mainActivities;
-	}
-
 	public List<ResolveInfo> getServices() {
 		return services;
 	}
@@ -238,10 +283,7 @@ public class PlugInfo {
 	}
 
 	public ResolveInfo getMainActivity() {
-		if (mainActivities == null || mainActivities.isEmpty()) {
-			return null;
-		}
-		return mainActivities.get(0);
+		return mainActivity;
 	}
 
 	public List<ResolveInfo> getReceivers() {

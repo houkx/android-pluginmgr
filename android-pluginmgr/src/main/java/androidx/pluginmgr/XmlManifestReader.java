@@ -33,20 +33,38 @@ import android.util.TypedValue;
  * Read xml document from Android's binary xml file.
  */
 class XmlManifestReader {
-	private static final String DEFAULT_XML = "AndroidManifest.xml";
+	public static final String DEFAULT_XML = "AndroidManifest.xml";
 
 	private XmlManifestReader() {
 	}
-
+	
 	public static String getManifestXMLFromAPK(String apkPath) {
 		ZipFile file = null;
-		StringBuilder xmlSb = new StringBuilder(100);
+		String rs = null;
 		try {
 			File apkFile = new File(apkPath);
 			file = new ZipFile(apkFile, ZipFile.OPEN_READ);
 			ZipEntry entry = file.getEntry(DEFAULT_XML);
-
-			XmlResourceParser parser = new XmlResourceParser();
+			rs = getManifestXMLFromAPK(file, entry);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (file != null) {
+				try {
+					file.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return rs;
+	}
+	
+	public static String getManifestXMLFromAPK(ZipFile file, ZipEntry entry) {
+		StringBuilder xmlSb = new StringBuilder(100);
+		XmlResourceParser parser = null;
+		try {
+			parser = new XmlResourceParser();
 			parser.open(file.getInputStream(entry));
 
 			StringBuilder sb = new StringBuilder(10);
@@ -103,20 +121,14 @@ class XmlManifestReader {
 				}
 				}
 			}
-			parser.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			if (file != null) {
-				try {
-					file.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
+			parser.close();
 		}
 		return xmlSb.toString();
 	}
+
 
 	private static String getNamespacePrefix(String prefix) {
 		if (prefix == null || prefix.length() == 0) {

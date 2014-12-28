@@ -1,13 +1,25 @@
-/**
- * 
+/*
+ * Copyright (C) 2015 HouKx <hkx.aidream@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package androidx.pluginmgr;
 
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,7 +40,7 @@ import android.util.Log;
  */
 public class PluginManager implements FileFilter {
 	private static final PluginManager instance = new PluginManager();
-
+    private Activity actFrom;
 	private PluginManager() {
 	}
 
@@ -38,6 +50,7 @@ public class PluginManager implements FileFilter {
 		}
 		Context ctx = context;
 		if (context instanceof Activity) {
+			instance.actFrom = (Activity)context;
 			ctx = ((Activity) context).getApplication();
 		} else if (context instanceof Service) {
 			ctx = ((Service) context).getApplication();
@@ -56,11 +69,25 @@ public class PluginManager implements FileFilter {
 		return instance;
 	}
 	
-	public void startMainActivity(Context context, String pkgOrId) {
+	public boolean startMainActivity(Context context, String pkgOrId) {
+		Log.d(tag, "startMainActivity by:"+pkgOrId);
 		PlugInfo plug = preparePlugForStartActivity(context, pkgOrId);
+		if (frameworkClassLoader == null) {
+			Log.e(tag, "startMainActivity: frameworkClassLoader == null!");
+			return false;
+		}
+		if(plug.getMainActivity()==null){
+			Log.e(tag, "startMainActivity: plug.getMainActivity() == null!");
+			return false;
+		}
+		if(plug.getMainActivity().activityInfo==null){
+			Log.e(tag, "startMainActivity: plug.getMainActivity().activityInfo == null!");
+			return false;
+		}
 		String className = frameworkClassLoader.newActivityClassName(
 				plug.getId(), plug.getMainActivity().activityInfo.name);
 		context.startActivity(new Intent().setComponent(new ComponentName(context, className)));
+		return true;
 	}
 	
 	public void startActivity(Context context, Intent intent) {
@@ -102,6 +129,7 @@ public class PluginManager implements FileFilter {
 		PlugInfo plug = preparePlugForStartActivity(context, plugIdOrPkg);
 		String className = frameworkClassLoader.newActivityClassName(
 				plug.getId(), actName);
+		Log.i(tag, "performStartActivity: "+actName);
 		ComponentName comp = new ComponentName(context, className);
 		intent.setAction(null);
 		intent.setComponent(comp);
@@ -116,16 +144,16 @@ public class PluginManager implements FileFilter {
 	private File dexInternalStoragePath;
 	private FrameworkClassLoader frameworkClassLoader;
 	private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
-	private final String tag = "plugmgr";
+	private static final String tag = "plugmgr";
 
 	private void init(Context ctx) {
 		context = ctx;
-		File optimizedDexPath = ctx.getDir("outdex", Context.MODE_PRIVATE);
+		File optimizedDexPath = ctx.getDir("plugsout", Context.MODE_PRIVATE);
 		if (!optimizedDexPath.exists()) {
 			optimizedDexPath.mkdirs();
 		}
 		dexOutputPath = optimizedDexPath.getAbsolutePath();
-		dexInternalStoragePath = context.getDir("dex", Context.MODE_PRIVATE);
+		dexInternalStoragePath = context.getDir("plugins", Context.MODE_PRIVATE);
 		dexInternalStoragePath.mkdirs();
 		try {
 			Object mPackageInfo = ReflectionUtils.getFieldValue(ctx,
@@ -216,27 +244,26 @@ public class PluginManager implements FileFilter {
 	}
 
 	/**
-	 * 加载指定目录下的所有插件
+	 * 加载指定插件或指定目录下的所有插件
 	 * <p>
 	 * 都使用文件名作为Id
 	 * 
 	 * @param pluginSrcDirFile
-	 *            - apk目录
-	 * @return 插件数目
+	 *            - apk或apk目录
+	 * @return 插件集合
 	 * @throws Exception
 	 */
 	public Collection<PlugInfo> loadPlugin(final File pluginSrcDirFile)
 			throws Exception {
 		checkInit();
 		if (pluginSrcDirFile == null || !pluginSrcDirFile.exists()) {
-			Log.e(tag, "invalidate pluginDir :"+pluginSrcDirFile);
+			Log.e(tag, "invalidate plugin file or Directory :"+pluginSrcDirFile);
 			return null;
 		}
 		if (pluginSrcDirFile.isFile()) {
-			ArrayList<PlugInfo> list = new ArrayList<PlugInfo>(1);
+			// 如果是文件则尝试加载单个插件，暂不检查文件类型，除apk外，以后可能支持加载其他类型文件,如jar
 			PlugInfo one = loadPluginWithId(pluginSrcDirFile, null, null);
-			list.add(one);
-			return list;
+			return Collections.singletonList(one);
 		}
 		// clear all first
 		synchronized (this) {
@@ -303,10 +330,12 @@ public class PluginManager implements FileFilter {
 			String targetFileName) throws Exception {
 		PlugInfo info = new PlugInfo();
 		info.setId(pluginId == null ? pluginApk.getName() : pluginId);
-		info.setFilePath(pluginApk.getAbsolutePath());
 
 		File privateFile = new File(dexInternalStoragePath,
 				targetFileName == null ? pluginApk.getName() : targetFileName);
+		
+		info.setFilePath(privateFile.getAbsolutePath());
+		
 		if (!pluginApk.getAbsolutePath().equals(privateFile.getAbsolutePath())) {
 			copyApkToPrivatePath(pluginApk, privateFile);
 		}
@@ -350,18 +379,40 @@ public class PluginManager implements FileFilter {
 	// }
 	// }
 
-	private void initPluginApplication(PlugInfo info) throws Exception {
+	private void initPluginApplication(final PlugInfo info) throws Exception {
 		String className = info.getPackageInfo().applicationInfo.name;
+		Log.d(tag, info.getId() + ", ApplicationClassName = " + className);
 		// create Application instance for plugin
-		Application application = null;
 		if (className == null) {
-			application = new Application();
+			Application application = new Application();
+			setApplicationBase(info, application);
 		} else {
 			ClassLoader loader = info.getClassLoader();
-			Class<?> applicationClass = loader.loadClass(className);
-			application = (Application) applicationClass.newInstance();
+			final Class<?> applicationClass = loader.loadClass(className);
+			if (actFrom != null) {
+				actFrom.runOnUiThread(new Runnable() {
+					public void run() {
+						try {
+							Application application = (Application) applicationClass
+									.newInstance();
+							setApplicationBase(info, application);
+							// invoke plugin application's onCreate()
+							application.onCreate();
+						} catch (Throwable e) {
+							Log.e(tag, Log.getStackTraceString(e));
+						}
+					}
+				});
+
+			} else {
+				Application application = (Application) applicationClass
+						.newInstance();
+				setApplicationBase(info, application);
+			}
 		}
-		info.setApplication(application);
+	}
+    private void setApplicationBase(PlugInfo info,Application application)throws Exception{
+    	info.setApplication(application);
 		//
 		PluginContextWrapper ctxWrapper = new PluginContextWrapper(context,
 				info);
@@ -378,10 +429,7 @@ public class PluginManager implements FileFilter {
 						.invoke(context, application);
 			}
 		}
-		// invoke plugin application's onCreate()
-		application.onCreate();
-	}
-
+    }
 	private void copyApkToPrivatePath(File pluginApk, File f) {
 		// if (f.exists() && pluginApk.length() == f.length()) {
 		// // 这里只是简单的判断如果两个文件长度相同则不拷贝，严格的做应该比较签名如 md5\sha-1
@@ -390,11 +438,11 @@ public class PluginManager implements FileFilter {
 		FileUtil.copyFile(pluginApk, f);
 	}
 
-	public File getDexInternalStoragePath() {
+	File getDexInternalStoragePath() {
 		return dexInternalStoragePath;
 	}
 
-	public Context getContext() {
+	Context getContext() {
 		return context;
 	}
 

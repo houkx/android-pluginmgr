@@ -1,5 +1,17 @@
-/**
- * 
+/*
+ * Copyright (C) 2015 HouKx <hkx.aidream@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package androidx.pluginmgr;
 
@@ -10,8 +22,10 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.ContextWrapper;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.res.AssetManager;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Window;
@@ -27,24 +41,51 @@ public class ActivityOverider {
 	 * 自动生成的 Activity 的全类名
 	 */
 	static final String targetClassName = "androidx.pluginmgr.PluginActivity";
-
+    // ------------------- process service  ---------
+	/**
+	 * 覆盖 StarService 方法
+	 * 
+	 * @param intent
+	 * @param fromAct
+	 */
+	public static ComponentName overrideStartService(Activity fromAct,String pluginId,Intent intent) {
+		//TODO 覆盖 StarService 方法
+		Log.d(tag, "overrideStartService");
+		return fromAct.startService(intent);
+	}
+	public static boolean overrideBindService(Activity fromAct,String pluginId,Intent intent,ServiceConnection conn, int flags) {
+		//TODO overrideBindService
+		Log.d(tag, "overrideBindService");
+		return fromAct.bindService(intent, conn, flags);
+	}
+	public static void overrideUnbindService(Activity fromAct,String pluginId,ServiceConnection conn) {
+		//TODO overrideUnbindService
+		Log.d(tag, "overrideUnbindService");
+		fromAct.unbindService( conn);
+	}
+	public static boolean overrideStopService(Activity fromAct,String pluginId,Intent intent){
+		//TODO overrideStopService
+		Log.d(tag, "overrideStopService");
+		return fromAct.stopService(intent);
+	}
+	// ------------------ process Activity ---------------------------
 	/**
 	 * 处理 Intent 跳转
 	 * <p>
 	 * 供插件中的 startActivity 调用
 	 * 
+	 * @param fromAct
+	 *            - 发出请求的Activity
+	 * @param pluginId
+	 *            - 插件id
 	 * @param intent
 	 *            - 启动其他Activity的Intent请求
 	 * @param requestCode
 	 * @param options
-	 * @param pluginId
-	 *            - 插件id
-	 * @param fromAct
-	 *            - 发出请求的Activity
 	 * @return 修改后的 Intent
 	 */
-	public static Intent newIntent(Intent intent, int requestCode,
-			Bundle options, String pluginId, Activity fromAct) {
+	public static Intent overrideStartActivityForResult(Activity fromAct, String pluginId,Intent intent, int requestCode,
+			Bundle options) {
 		// 主要做以下工作：
 		// 1 、修改Intent的跳转目标
 		// 2 、帮助插件类加载器决定使用哪个activity类加载器
@@ -110,32 +151,32 @@ public class ActivityOverider {
 
 	private static void setPluginIntent(Intent intent, PlugInfo plugin,
 			String actName) {
-		String pkgName = null;
-		if (intent.getComponent() != null) {
-			pkgName = intent.getComponent().getPackageName();
-		}
 		PluginManager mgr = PluginManager.getInstance();
 		String pluginId = plugin.getId();
 		createProxyDex(plugin, actName);
 		String act = mgr.getFrameworkClassLoader().newActivityClassName(
 				pluginId, actName);
-		ComponentName compname = null;
-		if (pkgName != null) {
-			compname = new ComponentName(pkgName, act);
-		} else {
-			compname = new ComponentName(mgr.getContext(), act);
-		}
+		ComponentName compname = new ComponentName(mgr.getContext(), act);
 		intent.setComponent(compname);
 	}
-
-	static File getPorxyActivityDexPath(PlugInfo plugin, String activity) {
-		String actName = activity;
+	static File getPluginBaseDir(String pluginId) {
 		String pluginPath = PluginManager.getInstance()
 				.getDexInternalStoragePath().getAbsolutePath();
-		String pluginDir = pluginPath + '/' + plugin.getId() + ".acts/";
+		String pluginDir = pluginPath + '/' + pluginId + "-dir/";
 		File folder = new File(pluginDir);
 		folder.mkdirs();
-		File saveDir = new File(folder, actName + ".dex");
+		return folder;
+	}
+	
+	static File getPluginLibDir(String pluginId) {
+		File folder = new File(getPluginBaseDir(pluginId)+ "/lib/");
+		return folder;
+	}
+	
+	static File getPorxyActivityDexPath(String pluginId, String activity) {
+		File folder = new File(getPluginBaseDir(pluginId)+"/acts/");
+		folder.mkdirs();
+		File saveDir = new File(folder, activity + ".dex");
 		return saveDir;
 	}
 
@@ -144,7 +185,7 @@ public class ActivityOverider {
 	}
 
 	static void createProxyDex(PlugInfo plugin, String activity, boolean lazy) {
-		File saveDir = getPorxyActivityDexPath(plugin, activity);
+		File saveDir = getPorxyActivityDexPath(plugin.getId(), activity);
 		createProxyDex(plugin, activity, saveDir, lazy);
 	}
 
@@ -166,7 +207,33 @@ public class ActivityOverider {
 			Log.e(tag, Log.getStackTraceString(e));
 		}
 	}
-
+	/*	
+	 *<pre> 
+	 *
+	      public PluginActivity(){
+		    this.mResources = ActivityOverider.getResources(_pluginId, this);
+		    this.mAssertManager = mResources.getAssets();
+		  }
+		  
+	      protected void onCreate(Bundle paramBundle){
+		     ActivityOverider.callback_onCreate(_pluginId, this);
+		     super.onCreate(paramBundle);
+		  }
+		  
+		  </pre>
+		  *
+		  */
+    //TODO 构造方法中返回 Resources，
+	// 自动生成的类中:
+	// this.mAssertManager = mResources.getAssets();
+	public static Resources getResources(String pluginId, Activity fromAct) {
+		PluginManager mgr = PluginManager.getInstance();
+		PlugInfo rsinfo = mgr.getPluginById(pluginId);
+		AssetManager assets = rsinfo.getAssetManager();
+		Resources frameworkRes = mgr.getContext().getResources();
+		Resources res = new Resources(assets, frameworkRes.getDisplayMetrics(), frameworkRes.getConfiguration());
+		return res;
+	}
 	/**
 	 * 按照pluginId寻找AssetManager
 	 * <p>
@@ -210,9 +277,9 @@ public class ActivityOverider {
 	 * @param fromAct
 	 * @return 是否调用父类的onBackPressed()方法
 	 */
-	public static boolean overideOnbackPressed(String pluginId, Activity fromAct) {
+	public static boolean overrideOnbackPressed(Activity fromAct,String pluginId) {
 		PlugInfo plinfo = PluginManager.getInstance().getPluginById(pluginId);
-		String actName = fromAct.getClass().getSuperclass().getSimpleName();
+		String actName = fromAct.getClass().getSuperclass().getName();
 		ActivityInfo actInfo = plinfo.findActivityByClassName(actName);
 		boolean finish = plinfo.isFinishActivityOnbackPressed(actInfo);
 		if (finish) {
@@ -228,6 +295,22 @@ public class ActivityOverider {
 	//
 	public static void callback_onCreate(String pluginId, Activity fromAct) {
 		PluginManager con = PluginManager.getInstance();
+		
+		// setTheme
+		PlugInfo plugin = con.getPluginById(pluginId);
+		String actName = fromAct.getClass().getSuperclass().getName();
+		Log.d(tag, "pluginId = "+plugin+", actName = "+actName+", simpleName="+fromAct.getClass().getSuperclass().getSimpleName());
+		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+		int themeResId = actInfo.theme;
+		Log.d(tag,"actTheme="+themeResId);
+		if (themeResId == 0) {
+			themeResId = plugin.getPackageInfo().applicationInfo.theme;
+			Log.d(tag,"applicationTheme="+themeResId);
+		}
+		if (themeResId != 0) {
+			fromAct.setTheme(themeResId);
+		}
+		// invoke callback
 		PluginActivityLifeCycleCallback callback = con
 				.getPluginActivityLifeCycleCallback();
 		if (callback != null) {

@@ -1,11 +1,8 @@
 package androidx.plmgrdemo;
 
-import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
@@ -22,8 +19,9 @@ class PlugListViewAdapter extends BaseAdapter {
 
 	private LayoutInflater inflater = null;
 	private List<PlugInfo> datas;
-	
+	private Context mContext;
 	public PlugListViewAdapter(Context context, Collection<PlugInfo> datas) {
+		mContext = context;
 		inflater = LayoutInflater.from(context);
 		this.datas = new ArrayList<PlugInfo>(datas);
 	}
@@ -43,7 +41,6 @@ class PlugListViewAdapter extends BaseAdapter {
 		return datas.get(position).getId().hashCode();
 	}
 
-	private Map<String, SoftReference<Drawable>> imageCache = new HashMap<String, SoftReference<Drawable>>();
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent) {
 		ViewHolder mViewHolder = null;
@@ -65,17 +62,21 @@ class PlugListViewAdapter extends BaseAdapter {
 			mViewHolder = (ViewHolder) convertView.getTag();
 		}
 		PlugInfo plug = datas.get(position);
-		String title = plug.getResources().getString(plug.getPackageInfo().applicationInfo.labelRes);
-		mViewHolder.title.setText(title);
-		SoftReference<Drawable> imgref = imageCache.get(plug.getId());
-		Drawable drawable;
-		if (imgref != null) {
-			drawable = imgref.get();
-		} else {
-			drawable = plug.getResources().getDrawable(
-					plug.getPackageInfo().applicationInfo.icon);
-			imageCache.put(plug.getId(), new SoftReference<Drawable>(drawable));
+		{
+			int labelRes =plug.getPackageInfo().applicationInfo.labelRes;
+			if (labelRes != 0) {
+				String label = plug.getResources().getString(labelRes);
+				mViewHolder.title.setText(label);
+			} else{
+				CharSequence label = plug.getPackageInfo().applicationInfo
+						.loadLabel(mContext.getPackageManager());
+				if (label != null) {
+					mViewHolder.title.setText(label);
+				}
+			}
 		}
+		Drawable drawable = plug.getResources().getDrawable(
+				plug.getPackageInfo().applicationInfo.icon);
 		mViewHolder.icon.setImageDrawable(drawable);
 		String descText;
 		int descId = plug.getPackageInfo().applicationInfo.descriptionRes;
