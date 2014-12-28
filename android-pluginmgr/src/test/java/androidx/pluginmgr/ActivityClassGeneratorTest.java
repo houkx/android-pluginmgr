@@ -45,12 +45,12 @@ public class ActivityClassGeneratorTest {
 
 //	@Test
 	public void testGenerateActivity_method_startService() throws Throwable {
-		String superClassName = "androidplug.servicetest.StartTestActivity";
+		String superClassName = "androidplugdemo.SthActivity";
 		String targetClassName = ActivityOverider.targetClassName;
-		String pluginId = "serviceTest_v1";
-		String pkgName = "androidplug.servicetest";
+		String pluginId = "activityTest_v1";
+		String pkgName = "androidplugdemo";
 		File saveTo = new File(System.getProperty("user.dir")
-				+ "/target/ServiceStartTest.dex");
+				+ "/target/StartTestActivity.dex");
 		ActivityClassGenerator.createActivityDex(superClassName,
 				targetClassName, saveTo, pluginId, pkgName);
 	}
