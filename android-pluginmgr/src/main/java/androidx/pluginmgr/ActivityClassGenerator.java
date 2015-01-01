@@ -22,7 +22,10 @@ import static java.lang.reflect.Modifier.PUBLIC;
 import static java.lang.reflect.Modifier.STATIC;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import android.app.Activity;
 import android.content.ComponentName;
@@ -42,6 +45,7 @@ import com.google.dexmaker.Label;
 import com.google.dexmaker.Local;
 import com.google.dexmaker.MethodId;
 import com.google.dexmaker.TypeId;
+import com.google.dexmaker.dx.dex.DexFormat;
 
 /**
  * 动态生成 插件Activity子类的工具类
@@ -58,7 +62,16 @@ class ActivityClassGenerator {
 			throws IOException {
 		byte[] dex = createActivityDex(superClassName, targetClassName,
 				pluginId, pkgName);
-		FileUtil.writeToFile(dex, saveTo);
+		if (saveTo.getName().endsWith(".dex")) {
+			FileUtil.writeToFile(dex, saveTo);
+		} else {
+			JarOutputStream jarOut = new JarOutputStream(new FileOutputStream(
+					saveTo));
+			jarOut.putNextEntry(new JarEntry(DexFormat.DEX_IN_JAR_NAME));
+			jarOut.write(dex);
+			jarOut.closeEntry();
+			jarOut.close();
+		}
 	}
 
 	/**
@@ -296,9 +309,19 @@ class ActivityClassGenerator {
 		TypeId<Intent> intent = TypeId.get(Intent.class);
 		TypeId<Integer> requestCode = TypeId.INT;
 		TypeId<Bundle> bundle = TypeId.get(Bundle.class);
-
+		
+		TypeId<?>[] params;
+		String methodName = "startActivityForResult";
+		final boolean isNewSdk = android.os.Build.VERSION.SDK_INT > 10;
+		if (isNewSdk) {
+			params = new TypeId[] { intent, requestCode, bundle };
+		} else {
+			params = new TypeId[] { intent, requestCode };
+		}
 		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
-				"startActivityForResult", intent, requestCode, bundle);
+				methodName, params);
+		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID,
+				methodName, params);
 		Code methodCode = dexMaker.declare(method, PUBLIC);
 		TypeId<ActivityOverider> ActivityOverider = TypeId
 				.get(ActivityOverider.class);
@@ -309,25 +332,40 @@ class ActivityClassGenerator {
 		// locals
 		Local<D> localThis = methodCode.getThis(generatedType);
 		Local<Intent> newIntent = methodCode.newLocal(intent);
+		Local<Bundle> nullParamBundle = methodCode.newLocal(bundle);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
-
-		methodCode.invokeStatic(methodOveride,
-				newIntent//
-				,localThis
-				, pluginId
-				, methodCode.getParameter(0, intent)//
-				, methodCode.getParameter(1, requestCode)//
-				, methodCode.getParameter(2, bundle)//
-				);
-		// super.startActivityForResult(...)
-		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID,
-				"startActivityForResult", intent, requestCode, bundle);
-		methodCode.invokeSuper(superMethod, null,
-				methodCode.getThis(generatedType)//
-				, newIntent//
-				, methodCode.getParameter(1, requestCode)//
-				, methodCode.getParameter(2, bundle) //
-				);
+		methodCode.loadConstant(nullParamBundle, null);
+		Local<?> args[];
+		if (isNewSdk) {
+			args = new Local[] {localThis
+					, pluginId
+					, methodCode.getParameter(0, intent)//
+					, methodCode.getParameter(1, requestCode)//
+					, methodCode.getParameter(2, bundle)//
+					};
+			methodCode.invokeStatic(methodOveride, newIntent, args);
+			// super.startActivityForResult(...)
+			
+			methodCode.invokeSuper(superMethod, null,
+					localThis//
+					, newIntent//
+					, methodCode.getParameter(1, requestCode)//
+					, methodCode.getParameter(2, bundle) //
+					);
+		} else {
+			args = new Local[] {localThis
+					, pluginId
+					, methodCode.getParameter(0, intent)//
+					, methodCode.getParameter(1, requestCode)//
+					,nullParamBundle
+					};
+			methodCode.invokeStatic(methodOveride, newIntent, args);
+			methodCode.invokeSuper(superMethod, null,
+					localThis//
+					, newIntent//
+					, methodCode.getParameter(1, requestCode)//
+					);
+		}
 		methodCode.returnVoid();
 	}
 

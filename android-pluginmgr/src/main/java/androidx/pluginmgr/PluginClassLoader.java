@@ -51,12 +51,11 @@ class PluginClassLoader extends DexClassLoader {
 	Class<?> loadActivityClass(final String actClassName) throws ClassNotFoundException {
 		Log.d(tag, "loadActivityClass: " + actClassName);
 
-		File dexSaveDir = ActivityOverider.getPorxyActivityDexPath(thisPlugin.getId(), actClassName);
 		// 在类加载之前检查创建代理的Activity dex文件，以免调用者忘记生成此文件
-		ActivityOverider.createProxyDex(thisPlugin, actClassName, dexSaveDir, true);
+		File dexSavePath = ActivityOverider.createProxyDex(thisPlugin, actClassName, true);
 		ClassLoader actLoader = proxyActivityLoaderMap.get(actClassName);
 		if (actLoader == null) {
-			actLoader = new DexClassLoader(dexSaveDir.getAbsolutePath(), optimizedDirectory,libraryPath, this){
+			actLoader = new DexClassLoader(dexSavePath.getAbsolutePath(), optimizedDirectory,libraryPath, this){
 				@Override
 				protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
 					Log.d("PlugActClassLoader("+ actClassName+")", "loadClass: " + name);
