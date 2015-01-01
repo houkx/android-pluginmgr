@@ -18,6 +18,7 @@ package androidx.pluginmgr;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -416,12 +417,10 @@ public class PluginManager implements FileFilter {
 		//
 		PluginContextWrapper ctxWrapper = new PluginContextWrapper(context,
 				info);
-		// set field: mBase
-		ReflectionUtils.setFieldValue(application, "mBase", ctxWrapper);
-		// set field: mLoadedApk, get from context(framework application)
-		Object mLoadedApk = ReflectionUtils
-				.getFieldValue(context, "mLoadedApk");
-		ReflectionUtils.setFieldValue(application, "mLoadedApk", mLoadedApk);
+		// attach
+		Method attachMethod = android.app.Application.class.getDeclaredMethod("attach", Context.class);
+		attachMethod.setAccessible(true);
+		attachMethod.invoke(application, ctxWrapper);
 		if (context instanceof Application) {
 			if (android.os.Build.VERSION.SDK_INT >= 14) {
 				Application.class.getMethod("registerComponentCallbacks",
