@@ -416,12 +416,10 @@ public class PluginManager implements FileFilter {
 		//
 		PluginContextWrapper ctxWrapper = new PluginContextWrapper(context,
 				info);
-		// set field: mBase
-		ReflectionUtils.setFieldValue(application, "mBase", ctxWrapper);
-		// set field: mLoadedApk, get from context(framework application)
-		Object mLoadedApk = ReflectionUtils
-				.getFieldValue(context, "mLoadedApk");
-		ReflectionUtils.setFieldValue(application, "mLoadedApk", mLoadedApk);
+		// attach
+		java.lang.reflect.Method attachMethod = android.app.Application.class.getDeclaredMethod("attach", Context.class);
+		attachMethod.setAccessible(true);
+		attachMethod.invoke(application, ctxWrapper);
 		if (context instanceof Application) {
 			if (android.os.Build.VERSION.SDK_INT >= 14) {
 				Application.class.getMethod("registerComponentCallbacks",

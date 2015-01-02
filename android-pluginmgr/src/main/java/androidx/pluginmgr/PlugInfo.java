@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.app.Application;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.ResolveInfo;
@@ -177,9 +178,8 @@ public class PlugInfo {
 	public void addActivity(ResolveInfo activity) {
 		activities.add(activity);
 		if (mainActivity == null && activity.filter != null
-				&& activity.filter.hasAction("android.intent.action.MAIN")
-				&& activity.filter.hasCategory("android.intent.category.LAUNCHER")
-				) {
+				&& activity.filter.hasAction(Intent.ACTION_MAIN)
+				&& activity.filter.hasCategory(Intent.CATEGORY_LAUNCHER)) {
 			mainActivity = activity;
 		}
 	}

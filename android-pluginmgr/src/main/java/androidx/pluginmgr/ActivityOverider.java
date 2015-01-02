@@ -173,22 +173,27 @@ public class ActivityOverider {
 	}
 	
 	static File getPorxyActivityDexPath(String pluginId, String activity) {
-		File folder = new File(getPluginBaseDir(pluginId)+"/acts/");
+		File folder = new File(getPluginBaseDir(pluginId)+"/activities/");
 		folder.mkdirs();
-		File saveDir = new File(folder, activity + ".dex");
-		return saveDir;
+		String suffix = ".dex";
+		if (android.os.Build.VERSION.SDK_INT < 11) {
+			suffix = ".jar";
+		}
+		File savePath = new File(folder, activity + suffix);
+		return savePath;
 	}
 
-	static void createProxyDex(PlugInfo plugin, String activity) {
-		createProxyDex(plugin, activity, true);
+	static File createProxyDex(PlugInfo plugin, String activity) {
+		return createProxyDex(plugin, activity, true);
 	}
 
-	static void createProxyDex(PlugInfo plugin, String activity, boolean lazy) {
-		File saveDir = getPorxyActivityDexPath(plugin.getId(), activity);
-		createProxyDex(plugin, activity, saveDir, lazy);
+	static File createProxyDex(PlugInfo plugin, String activity, boolean lazy) {
+		File savePath = getPorxyActivityDexPath(plugin.getId(), activity);
+		createProxyDex(plugin, activity, savePath, lazy);
+		return savePath;
 	}
 
-	static void createProxyDex(PlugInfo plugin, String activity, File saveDir,
+	private static void createProxyDex(PlugInfo plugin, String activity, File saveDir,
 			boolean lazy) {
 		// Log.d(tag + ":createProxyDex", "plugin=" + plugin + "\n, activity="
 		// + activity);
