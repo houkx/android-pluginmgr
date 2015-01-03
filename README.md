@@ -1,19 +1,19 @@
 ## Android PluginManager ##
 **dynamic load uninstalled apk**
-### Introduction ###
+## Introduction ##
  PluginManager is used to manage android applications like [eclipse](http://eclipse.org/) plugins.
 you can start an activity from an uninstalled apk placed in sdcard,just like it has installed or registed in the application's `AndroidManifest.xml`.
-### Support Features ###
+### Support Features
 - a **normal** apk is regard as **plug-in**
 - start **activity** from plug-in
 - start other activiy from plug activity
 - plug activity with **theme**
 - plug with custom `Application`
-- plug with **.so** 
+- plug with **.so**
 - support android2.x
 
  it's easy to use:
-### Steps:###
+### Steps:
 
 - declare permission in your `AndroidManifest.xml`: 
 
@@ -32,11 +32,12 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
   PlugInfo plug = pluginMgr.loadPlugin(myPlug).iterator().next();
   ```
 - start activity:
-  ```java
+  `
   pluginMgr.startMainActivity(context, plug.getPackageName());
-  ```
-### License###
+  `
 
+## License
+```java
 /*
  * Copyright (C) 2015 HouKx <hkx.aidream@gmail.com>
  *
@@ -52,7 +53,8 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-## About ###
+```
+## About
 [author's blog](http://blog.csdn.net/hkxxx/article/details/42194387)
 
 author's email:[address1](mailto:1084940623@qq.com)
