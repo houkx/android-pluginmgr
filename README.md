@@ -1,16 +1,15 @@
 ## Android PluginManager ##
 **dynamic load uninstalled apk**
 ### Introduction ###
- PluginManager is used to manage android applications like eclipse plugins.
-you can start an activity from an uninstalled apk placed in sdcard,just like it has installed or regist in the application's `AndroidManifest.xml`.
-
-### Support Features
-- a **normal** apk is regard as *plug-in*
-- start activity from plugin
+ PluginManager is used to manage android applications like [eclipse](http://eclipse.org/) plugins.
+you can start an activity from an uninstalled apk placed in sdcard,just like it has installed or registed in the application's `AndroidManifest.xml`.
+### Support Features ###
+- a **normal** apk is regard as **plug-in**
+- start **activity** from plug-in
 - start other activiy from plug activity
 - plug activity with **theme**
 - plug with custom `Application`
-- plug with **.so**
+- plug with **.so** 
 - support android2.x
 
  it's easy to use:
@@ -19,6 +18,7 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
 - declare permission in your `AndroidManifest.xml`: 
 
   `<uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />`
+
   `<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />`
 
 - regist an activity
@@ -33,13 +33,11 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
   ```
 - start activity:
   ```java
-  pluginMgr.startMainActivity(context, Plug.getPackageName());
+  pluginMgr.startMainActivity(context, plug.getPackageName());
   ```
+### License###
 
-
-### Copywrite ###
-```java
-/**
+/*
  * Copyright (C) 2015 HouKx <hkx.aidream@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,5 +51,9 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/
-```
+ */
+## About ###
+[author's blog](http://blog.csdn.net/hkxxx/article/details/42194387)
+
+author's email:[address1](mailto:1084940623@qq.com)
+[address2](mailto:hkx.aidream@gmail.com)
