@@ -182,7 +182,7 @@ class ActivityClassGenerator {
 		Local<ComponentName> localComp =  code.newLocal(ComponentName);
 		
 		MethodId<D, ComponentName> getComponent = generatedType
-				.getMethod(ComponentName, "getComponent");
+				.getMethod(ComponentName, "getComponentName");
 		
 		code.invokeVirtual(getComponent, localComp, localThis);
 		
