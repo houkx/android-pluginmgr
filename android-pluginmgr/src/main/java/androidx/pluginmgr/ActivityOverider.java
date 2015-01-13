@@ -98,16 +98,24 @@ public class ActivityOverider {
 			String toActName = compname.getClassName();
 			PlugInfo thisPlugin = mgr.getPluginById(pluginId);
 			ActivityInfo actInThisApk = null;
+			PlugInfo plug = thisPlugin;
 			if (pkg != null) {
 				if (pkg.equals(thisPlugin.getPackageName())) {
 					actInThisApk = thisPlugin
 							.findActivityByClassName(toActName);
+				}else{
+					PlugInfo otherPlug = mgr.getPluginByPackageName(pkg);
+					if (otherPlug != null) {
+						plug = otherPlug;
+						actInThisApk = otherPlug
+								.findActivityByClassName(toActName);
+					}
 				}
 			} else {
 				actInThisApk = thisPlugin.findActivityByClassName(toActName);
 			}
 			if (actInThisApk != null) {
-				setPluginIntent(intent, thisPlugin, actInThisApk.name);
+				setPluginIntent(intent, plug, actInThisApk.name);
 			} else {
 				for (PlugInfo plugInfo : mgr.getPlugins()) {
 					if (plugInfo == thisPlugin) {

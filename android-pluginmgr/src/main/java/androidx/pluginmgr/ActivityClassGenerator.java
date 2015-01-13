@@ -99,7 +99,7 @@ class ActivityClassGenerator {
 		//private static final String _pluginId = @param{pluginId};
 		// private AssetManager asm;
 		// private Resources res;
-		declareFields(dexMaker, generatedType, superType, pluginId);
+		declareFields(dexMaker, generatedType, superType, pluginId,pkgName);
 		// 声明 默认构造方法
 		declare_constructor(dexMaker, generatedType, superType);
 	
@@ -121,9 +121,7 @@ class ActivityClassGenerator {
 		declareMethod_bindService(dexMaker, generatedType, superType);
 		declareMethod_unbindService(dexMaker, generatedType, superType);
 		declareMethod_stopService(dexMaker, generatedType, superType);
-		// declareMethod_getPackageName(dexMaker, generatedType, superType,
-		// pkgName);
-		// Create the dex Content
+		// Create life Cycle methods
 		declareLifeCyleMethod(dexMaker, generatedType, superType, "onResume");
 		declareLifeCyleMethod(dexMaker, generatedType, superType, "onStart");
 		declareLifeCyleMethod(dexMaker, generatedType, superType, "onRestart");
@@ -131,16 +129,23 @@ class ActivityClassGenerator {
 		declareLifeCyleMethod(dexMaker, generatedType, superType, "onStop");
 		declareLifeCyleMethod(dexMaker, generatedType, superType, "onDestroy");
 
+		declareMethod_getComponentName(dexMaker, generatedType, superType, superClassName);
+		declareMethod_getPackageName(dexMaker, generatedType, pkgName);
+		declareMethod_getIntent(dexMaker, generatedType, superType);
+		// Create the dex Content
 		byte[] dex = dexMaker.generate();
 		return dex;
 	}
 
 	private static <S, D extends S> void declareFields(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType,
-			String pluginId) {
+			String pluginId,String pkgName) {
 		FieldId<D, String> _pluginId = generatedType.getField(TypeId.STRING,
 				"_pluginId");
 		dexMaker.declare(_pluginId, PRIVATE | STATIC | FINAL, pluginId);
+		FieldId<D, String> _pkg = generatedType.getField(TypeId.STRING,
+				"_pkg");
+		dexMaker.declare(_pkg, PRIVATE | STATIC | FINAL, pkgName);
 		
 		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
 		TypeId<Resources> Resources = TypeId.get(Resources.class);
@@ -161,18 +166,65 @@ class ActivityClassGenerator {
 		return pluginId;
 	}
 
-	// private static <S,D extends S> void declareMethod_getPackageName(
-	// DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType,
-	// String pkgName) {
-	// MethodId<D, String> methodOveride = generatedType.getMethod(
-	// TypeId.STRING, "getPackageName");
-	// Code methodCode = dexMaker.declare(methodOveride, PUBLIC);
-	// Local<String> local = methodCode.newLocal(TypeId.STRING);
-	// methodCode.loadConstant(local, pkgName);
-	// methodCode.returnValue(local);
-	// }
+	private static <S, D extends S> void declareMethod_getIntent(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
+		TypeId<Intent> Intent = TypeId.get(Intent.class);
+		TypeId<ComponentName> ComponentName = TypeId.get(ComponentName.class);
+		String methodName = "getIntent";
+		MethodId<D, Intent> method = generatedType
+				.getMethod(Intent, methodName);
+		MethodId<S, Intent> superMethod = superType
+				.getMethod(Intent, methodName);
+		
+		Code code = dexMaker.declare(method, PUBLIC);
+		Local<D> localThis = code.getThis(generatedType);
+		Local<Intent> i = code.newLocal(Intent);
+		Local<ComponentName> localComp =  code.newLocal(ComponentName);
+		
+		MethodId<D, ComponentName> getComponent = generatedType
+				.getMethod(ComponentName, "getComponent");
+		
+		code.invokeVirtual(getComponent, localComp, localThis);
+		
+		MethodId<Intent, Intent> setComponent = Intent
+				.getMethod(Intent, "setComponent",ComponentName);
+		
+	    code.invokeSuper(superMethod, i, localThis);
+	    code.invokeVirtual(setComponent, i, i, localComp);
+	    code.returnValue(i);
+	}
 	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private static <S, D extends S> void declareMethod_getPackageName(DexMaker dexMaker, TypeId<D> generatedType, String pkgName){
+		MethodId<D, String> method = generatedType.getMethod(TypeId.STRING,
+				"getPackageName");
+		Code methodCode = dexMaker.declare(method, PROTECTED);
+		Local<String> pkg = methodCode.newLocal(TypeId.STRING);
+		methodCode.loadConstant(pkg, pkgName);
+		methodCode.returnValue(pkg);
+	}
+	
+	private static <S, D extends S> void declareMethod_getComponentName(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType,String superClassName) {
+		TypeId<ComponentName> ComponentName = TypeId.get(ComponentName.class);
+		MethodId<D, ComponentName> method = generatedType.getMethod(ComponentName,
+				"getComponentName");
+		Code methodCode = dexMaker.declare(method, PROTECTED);
+		Local<String> pkg =  methodCode.newLocal(TypeId.STRING);
+		Local<String> cls =  methodCode.newLocal(TypeId.STRING);
+		Local<ComponentName> localComp =  methodCode.newLocal(ComponentName);
+		{
+			FieldId<D, String> fieldPkg = generatedType.getField(TypeId.STRING,
+					"_pkg");
+			methodCode.sget(fieldPkg, pkg);
+		}
+		methodCode.loadConstant(cls, superClassName);
+		
+		MethodId<ComponentName, Void> comp_constructor = ComponentName.getConstructor(
+				TypeId.STRING,TypeId.STRING);
+		methodCode.newInstance(localComp, comp_constructor, pkg, cls);
+		methodCode.returnValue(localComp);
+	}
+	
 	private static <S, D extends S> void declareMethod_onCreate(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
@@ -212,7 +264,7 @@ class ActivityClassGenerator {
 		//
 		methodCode.invokeStatic(methodOveride, localAsm, pluginId, localThis);
 		methodCode.iput(assertManager, localThis, localAsm);
-		MethodId methodGetResources = superType.getMethod(Resources,
+		MethodId<S, Resources> methodGetResources = superType.getMethod(Resources,
 				"getResources");
 		methodCode.invokeSuper(methodGetResources, superRes, localThis);
 
@@ -242,7 +294,7 @@ class ActivityClassGenerator {
 				.invokeStatic(method_call_onCreate, null, pluginId, localThis);
 		
 		// super.onCreate()
-		MethodId superMethod = superType.getMethod(TypeId.VOID, "onCreate",
+		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID, "onCreate",
 				Bundle);
 		methodCode.invokeSuper(superMethod, null, localThis, lcoalBundle);
 	
