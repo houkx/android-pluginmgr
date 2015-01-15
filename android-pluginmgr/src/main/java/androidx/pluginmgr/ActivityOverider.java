@@ -235,7 +235,12 @@ public class ActivityOverider {
 	public static AssetManager getAssetManager(String pluginId, Activity fromAct) {
 		PlugInfo rsinfo = PluginManager.getInstance().getPluginById(pluginId);
 		// fromAct.getApplicationContext();
+		// check has or not setApplication
 		try {
+			if(rsinfo.getApplication()==null){
+				PluginManager.getInstance().initPluginApplication(rsinfo, fromAct);
+			}
+			// TODO 实现真正的mBase,解决Theme问题
 			Field f = ContextWrapper.class.getDeclaredField("mBase");
 			f.setAccessible(true);
 			f.set(fromAct, rsinfo.getApplication());
@@ -281,9 +286,8 @@ public class ActivityOverider {
 	//
 	public static void callback_onCreate(String pluginId, Activity fromAct) {
 		PluginManager con = PluginManager.getInstance();
-		
-		// setTheme
 		PlugInfo plugin = con.getPluginById(pluginId);
+		// setTheme
 		String actName = fromAct.getClass().getSuperclass().getName();
 		Log.d(tag, "pluginId = "+plugin+", actName = "+actName);
 		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
