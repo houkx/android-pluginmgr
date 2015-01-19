@@ -229,8 +229,8 @@ public class ActivityOverider {
 		} catch (Exception e) {
 			Log.e(tag, Log.getStackTraceString(e));
 		}
-		// setTheme
-		String actName = fromAct.getClass().getSuperclass().getName();
+		// setTheme TODO 空指针异常 因为此时 mResources 字段还没赋值 暂时转移至onCreate回调中实现
+	/*	String actName = fromAct.getClass().getSuperclass().getName();
 		Log.d(tag, "pluginId = "+plugin+", actName = "+actName);
 		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
 		int themeResId = actInfo.theme;
@@ -241,7 +241,7 @@ public class ActivityOverider {
 		}
 		if (themeResId != 0) {
 			fromAct.setTheme(themeResId);
-		}
+		}*/
 		PluginActivityWrapper actWrapper = new PluginActivityWrapper(base, plugin.appWrapper, plugin);
 		return new Object[] { actWrapper, plugin.getAssetManager() };
 	}
@@ -280,6 +280,18 @@ public class ActivityOverider {
 			applicationField.set(fromAct, plugin.getApplication());
 		}  catch (Exception e) {
 			e.printStackTrace();
+		}
+		String actName = fromAct.getClass().getSuperclass().getName();
+		Log.d(tag, "pluginId = "+plugin+", actName = "+actName);
+		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+		int themeResId = actInfo.theme;
+		Log.d(tag,"actTheme="+themeResId);
+		if (themeResId == 0) {
+			themeResId = plugin.getPackageInfo().applicationInfo.theme;
+			Log.d(tag,"applicationTheme="+themeResId);
+		}
+		if (themeResId != 0) {
+			fromAct.setTheme(themeResId);
 		}
 		// 如果是三星Galaxy S4 手机，则使用包装的LayoutInflater替换原LayoutInflater
 		// 这款手机在解析内置的布局文件时有各种错误
