@@ -49,7 +49,7 @@ public class PlugInfo {
 	private transient Application application;
 	private transient AssetManager assetManager;
 	private transient Resources resources;
-
+	PluginContextWrapper appWrapper;
 	//
 	// private transient volatile String currentActivityClass;
 

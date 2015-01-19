@@ -438,6 +438,7 @@ public class PluginManager implements FileFilter {
 		//
 		PluginContextWrapper ctxWrapper = new PluginContextWrapper(context,
 				info);
+		info.appWrapper = ctxWrapper;
 		// attach
 		Method attachMethod = android.app.Application.class.getDeclaredMethod(
 				"attach", Context.class);

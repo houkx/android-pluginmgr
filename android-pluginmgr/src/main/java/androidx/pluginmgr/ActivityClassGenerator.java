@@ -29,6 +29,7 @@ import java.util.jar.JarOutputStream;
 
 import android.app.Activity;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.res.AssetManager;
@@ -129,6 +130,8 @@ class ActivityClassGenerator {
 		declareLifeCyleMethod(dexMaker, generatedType, superType, "onStop");
 		declareLifeCyleMethod(dexMaker, generatedType, superType, "onDestroy");
 
+		declareMethod_attachBaseContext(dexMaker, generatedType, superType);
+		
 		declareMethod_getComponentName(dexMaker, generatedType, superType, superClassName);
 		declareMethod_getPackageName(dexMaker, generatedType, pkgName);
 		declareMethod_getIntent(dexMaker, generatedType, superType);
@@ -166,6 +169,81 @@ class ActivityClassGenerator {
 		return pluginId;
 	}
 
+	private static <S, D extends S> void declareMethod_attachBaseContext(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
+		// Types
+		TypeId<Context> Context = TypeId.get(Context.class);
+		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
+		TypeId<Resources> Resources = TypeId.get(Resources.class);
+		FieldId<D, AssetManager> assertManager = generatedType.getField(AssetManager,
+				FIELD_ASSERTMANAGER);
+		FieldId<D, Resources> resources = generatedType.getField(Resources, FIELD_RESOURCES);
+		TypeId<ActivityOverider> ActivityOverider = TypeId
+				.get(ActivityOverider.class);
+		TypeId<DisplayMetrics> DisplayMetrics = TypeId
+				.get(DisplayMetrics.class);
+		TypeId<Configuration> Configuration = TypeId.get(Configuration.class);
+		
+		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
+				"attachBaseContext", Context);
+		Code methodCode = dexMaker.declare(method, PROTECTED);
+		TypeId<Object[]> ObjArr = TypeId.get(Object[].class);
+		// locals -- 一个方法内的本地变量必须提前声明在所有操作之前
+		Local<D> localThis = methodCode.getThis(generatedType);
+		Local<Object[]> rsArr = methodCode.newLocal(ObjArr);
+		Local<Object> rsArr0 = methodCode.newLocal(TypeId.OBJECT);
+		Local<Object> rsArr1 = methodCode.newLocal(TypeId.OBJECT);
+		Local<Context> base = methodCode.getParameter(0, Context);
+		Local<Context> newbase = methodCode.newLocal(Context);
+		Local<Integer> index0 = methodCode.newLocal(TypeId.INT);
+		Local<Integer> index1 = methodCode.newLocal(TypeId.INT);
+		Local<AssetManager> localAsm = methodCode.newLocal(AssetManager);
+		Local<Resources> superRes = methodCode.newLocal(Resources);
+		Local<DisplayMetrics> mtrc = methodCode.newLocal(DisplayMetrics);
+		Local<Configuration> cfg = methodCode.newLocal(Configuration);
+		Local<Resources> resLocal = methodCode.newLocal(Resources);
+		Local<String> pluginId = get_pluginId(generatedType, methodCode);
+		methodCode.loadConstant(index0, 0);
+		methodCode.loadConstant(index1, 1);
+		// codes:
+		//  Object [] rs = ActivitiOverrider.overrideAttachBaseContext(_pluginId, activity, base);
+		MethodId<ActivityOverider, Object[]> methodOverride = ActivityOverider.getMethod(ObjArr,
+				"overrideAttachBaseContext",TypeId.STRING,TypeId.get(Activity.class),Context);
+		methodCode.invokeStatic(methodOverride, rsArr, pluginId,localThis,base);
+		methodCode.aget(rsArr0, rsArr, index0);
+		methodCode.aget(rsArr1, rsArr, index1);
+		methodCode.cast(newbase, rsArr0);
+		methodCode.cast(localAsm, rsArr1);
+		// base = rs[0];
+		// localAsm = rs[1];
+		methodCode.iput(assertManager, localThis, localAsm);
+		MethodId<S, Resources> methodGetResources = superType.getMethod(Resources,
+				"getResources");
+		methodCode.invokeSuper(methodGetResources, superRes, localThis);
+
+		//
+		// superRes.getDisplayMetrics()
+		MethodId<Resources, DisplayMetrics> getDisplayMetrics = Resources
+				.getMethod(DisplayMetrics, "getDisplayMetrics");
+		methodCode.invokeVirtual(getDisplayMetrics, mtrc, superRes);
+		//
+		// superRes.getConfiguration()
+		MethodId<Resources, Configuration> getConfiguration = Resources
+				.getMethod(Configuration, "getConfiguration");
+		methodCode.invokeVirtual(getConfiguration, cfg, superRes);
+		//
+		// res = new Resources(asm, superRes.getDisplayMetrics(), superRes.getConfiguration());
+
+		MethodId<Resources, Void> res_constructor = Resources.getConstructor(
+				AssetManager, DisplayMetrics, Configuration);
+		methodCode.newInstance(resLocal, res_constructor, localAsm, mtrc, cfg);
+		methodCode.iput(resources, localThis, resLocal);
+		
+		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID,
+				"attachBaseContext", Context);
+		methodCode.invokeSuper(superMethod, null, localThis, newbase);
+		methodCode.returnVoid();
+	}
 	private static <S, D extends S> void declareMethod_getIntent(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		TypeId<Intent> Intent = TypeId.get(Intent.class);
@@ -227,65 +305,19 @@ class ActivityClassGenerator {
 	
 	private static <S, D extends S> void declareMethod_onCreate(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
-		TypeId<AssetManager> AssetManager = TypeId.get(AssetManager.class);
-		TypeId<Resources> Resources = TypeId.get(Resources.class);
-//		TypeId<Theme> Theme = TypeId.get(Theme.class);
-		FieldId<D, AssetManager> assertManager = generatedType.getField(AssetManager,
-				FIELD_ASSERTMANAGER);
-		FieldId<D, Resources> resources = generatedType.getField(Resources, FIELD_RESOURCES);
 		//
 		// 声明 方法：onCreate
 		TypeId<Bundle> Bundle = TypeId.get(Bundle.class);
 		TypeId<ActivityOverider> ActivityOverider = TypeId
 				.get(ActivityOverider.class);
-		TypeId<DisplayMetrics> DisplayMetrics = TypeId
-				.get(DisplayMetrics.class);
-		TypeId<Configuration> Configuration = TypeId.get(Configuration.class);
 
 		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
 				"onCreate", Bundle);
 		Code methodCode = dexMaker.declare(method, PROTECTED);
-		// locals -- 一个方法内的本地变量必须提前声明在所有操作之前
+		// locals 
 		Local<D> localThis = methodCode.getThis(generatedType);
 		Local<Bundle> lcoalBundle = methodCode.getParameter(0, Bundle);
-		Local<AssetManager> localAsm = methodCode.newLocal(AssetManager);
-		Local<Resources> superRes = methodCode.newLocal(Resources);
-		Local<DisplayMetrics> mtrc = methodCode.newLocal(DisplayMetrics);
-		Local<Configuration> cfg = methodCode.newLocal(Configuration);
-		Local<Resources> resLocal = methodCode.newLocal(Resources);
-//		Local<Theme> localTheme = methodCode.newLocal(Theme);
-//		Local<Theme> superTheme = methodCode.newLocal(Theme);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
-		// ActivityOverider:
-		// public static AssetManager getAssetManager(String,Activity)
-		MethodId<ActivityOverider, AssetManager> methodOveride = ActivityOverider
-				.getMethod(AssetManager, "getAssetManager", TypeId.STRING,
-						TypeId.get(Activity.class));
-		//
-		methodCode.invokeStatic(methodOveride, localAsm, pluginId, localThis);
-		methodCode.iput(assertManager, localThis, localAsm);
-		MethodId<S, Resources> methodGetResources = superType.getMethod(Resources,
-				"getResources");
-		methodCode.invokeSuper(methodGetResources, superRes, localThis);
-
-		//
-		// superRes.getDisplayMetrics()
-		MethodId<Resources, DisplayMetrics> getDisplayMetrics = Resources
-				.getMethod(DisplayMetrics, "getDisplayMetrics");
-		methodCode.invokeVirtual(getDisplayMetrics, mtrc, superRes);
-		//
-		// superRes.getConfiguration()
-		MethodId<Resources, Configuration> getConfiguration = Resources
-				.getMethod(Configuration, "getConfiguration");
-		methodCode.invokeVirtual(getConfiguration, cfg, superRes);
-		//
-		// res = new Resources(asm, superRes.getDisplayMetrics(),
-		// superRes.getConfiguration());
-
-		MethodId<Resources, Void> res_constructor = Resources.getConstructor(
-				AssetManager, DisplayMetrics, Configuration);
-		methodCode.newInstance(resLocal, res_constructor, localAsm, mtrc, cfg);
-		methodCode.iput(resources, localThis, resLocal);
 		
 		MethodId<ActivityOverider, Void> method_call_onCreate = ActivityOverider
 				.getMethod(TypeId.VOID, "callback_onCreate", TypeId.STRING,
