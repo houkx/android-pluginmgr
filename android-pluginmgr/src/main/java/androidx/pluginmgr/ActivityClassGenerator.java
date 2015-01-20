@@ -212,14 +212,15 @@ class ActivityClassGenerator {
 		methodCode.invokeStatic(methodOverride, rsArr, pluginId,localThis,base);
 		methodCode.aget(rsArr0, rsArr, index0);
 		methodCode.aget(rsArr1, rsArr, index1);
-		methodCode.cast(newbase, rsArr0);
-		methodCode.cast(localAsm, rsArr1);
-		// base = rs[0];
-		// localAsm = rs[1];
+		methodCode.cast(newbase, rsArr0);// base = rs[0];
+		methodCode.cast(localAsm, rsArr1);// localAsm = rs[1];
+		
+		
 		methodCode.iput(assertManager, localThis, localAsm);
-		MethodId<S, Resources> methodGetResources = superType.getMethod(Resources,
+		// superRes = base.getResources();
+		MethodId<Context, Resources> methodGetResources = Context.getMethod(Resources,
 				"getResources");
-		methodCode.invokeSuper(methodGetResources, superRes, localThis);
+		methodCode.invokeVirtual(methodGetResources, superRes, base);
 
 		//
 		// superRes.getDisplayMetrics()
