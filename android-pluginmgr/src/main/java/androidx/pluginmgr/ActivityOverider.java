@@ -222,26 +222,14 @@ public class ActivityOverider {
 		Log.i(tag, "overrideAttachBaseContext: pluginId="+pluginId+", activity="+fromAct.getClass().getSuperclass().getName());
 		// 
 		PlugInfo plugin = PluginManager.getInstance().getPluginById(pluginId);
-		try {
-			if(plugin.getApplication()==null){
-				PluginManager.getInstance().initPluginApplication(plugin, fromAct);
+		if (plugin.getApplication() == null) {
+			try {
+				PluginManager.getInstance().initPluginApplication(plugin,
+						null);
+			} catch (Exception e) {
+				Log.e(tag, Log.getStackTraceString(e));
 			}
-		} catch (Exception e) {
-			Log.e(tag, Log.getStackTraceString(e));
 		}
-		// setTheme TODO 空指针异常 因为此时 mResources 字段还没赋值 暂时转移至onCreate回调中实现
-	/*	String actName = fromAct.getClass().getSuperclass().getName();
-		Log.d(tag, "pluginId = "+plugin+", actName = "+actName);
-		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
-		int themeResId = actInfo.theme;
-		Log.d(tag,"actTheme="+themeResId);
-		if (themeResId == 0) {
-			themeResId = plugin.getPackageInfo().applicationInfo.theme;
-			Log.d(tag,"applicationTheme="+themeResId);
-		}
-		if (themeResId != 0) {
-			fromAct.setTheme(themeResId);
-		}*/
 		PluginActivityWrapper actWrapper = new PluginActivityWrapper(base, plugin.appWrapper, plugin);
 		return new Object[] { actWrapper, plugin.getAssetManager() };
 	}

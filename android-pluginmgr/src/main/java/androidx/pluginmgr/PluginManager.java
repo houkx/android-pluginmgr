@@ -40,14 +40,29 @@ import android.util.Log;
  * @author HouKangxi
  */
 public class PluginManager implements FileFilter {
+	private static final String tag = "plugmgr";
+	
 	private static final PluginManager instance = new PluginManager();
-	private Activity actFrom;
 
+	private final Map<String, PlugInfo> pluginIdToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
+	private final Map<String, PlugInfo> pluginPkgToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
+	private Context context;
+	private String dexOutputPath;
+	private volatile boolean hasInit = false;
+	private File dexInternalStoragePath;
+	private FrameworkClassLoader frameworkClassLoader;
+	private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
+	private volatile Activity actFrom;
+	
 	private PluginManager() {
 	}
 
+	
 	public static PluginManager getInstance(Context context) {
 		if (instance.hasInit || context == null) {
+			if (instance.actFrom == null && context instanceof Activity) {
+				instance.actFrom = (Activity) context;
+			}
 			return instance;
 		}
 		Context ctx = context;
@@ -141,15 +156,6 @@ public class PluginManager implements FileFilter {
 		intent.setComponent(comp);
 	}
 
-	private final Map<String, PlugInfo> pluginIdToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
-	private final Map<String, PlugInfo> pluginPkgToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
-	private Context context;
-	private String dexOutputPath;
-	private volatile boolean hasInit = false;
-	private File dexInternalStoragePath;
-	private FrameworkClassLoader frameworkClassLoader;
-	private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
-	private static final String tag = "plugmgr";
 
 	private void init(Context ctx) {
 		context = ctx;
@@ -392,64 +398,72 @@ public class PluginManager implements FileFilter {
 		initPluginApplication(info, actFrom, false);
 	}
 
-	private void initPluginApplication(final PlugInfo info, Activity actFrom, boolean onLoad) throws Exception {
-		if (!onLoad && info.getApplication() != null) {
+	private void initPluginApplication(final PlugInfo plugin, Activity actFrom, boolean onLoad) throws Exception {
+		if (!onLoad && plugin.getApplication() != null) {
 			return;
 		}
-		String className = info.getPackageInfo().applicationInfo.name;
+		final String className = plugin.getPackageInfo().applicationInfo.name;
 		if (className == null) {
 			if (onLoad) {
 				return;
 			}
 			Application application = new Application();
-			setApplicationBase(info, application);
+			setApplicationBase(plugin, application);
 			return;
 		}
-		Log.d(tag, info.getId() + ", ApplicationClassName = " + className);
-		if (actFrom == null) {
-			return;
-		}
-		// create Application instance for plugin
-		ClassLoader loader = info.getClassLoader();
-		final Class<?> applicationClass = loader.loadClass(className);
-		actFrom.runOnUiThread(new Runnable() {
+		Log.d(tag, plugin.getId() + ", ApplicationClassName = " + className);
+		
+		Runnable setApplicationTask = new Runnable() {
 			public void run() {
+				ClassLoader loader = plugin.getClassLoader();
 				try {
+					Class<?> applicationClass = loader.loadClass(className);
 					Application application = (Application) applicationClass
 							.newInstance();
-					setApplicationBase(info, application);
+					setApplicationBase(plugin, application);
 					// invoke plugin application's onCreate()
 					application.onCreate();
 				} catch (Throwable e) {
 					Log.e(tag, Log.getStackTraceString(e));
 				}
 			}
-		});
-		 /*
-		 * else { Application application = (Application) applicationClass
-		 * .newInstance(); setApplicationBase(info, application);
-		 * 转移至activity的onCreate回调中解决 }
-		 */
+		};
+		// create Application instance for plugin
+		if (actFrom == null) {
+			if(onLoad)
+			return;
+			setApplicationTask.run();
+		}else{
+			actFrom.runOnUiThread(setApplicationTask);
+		}
 	}
 
-	private void setApplicationBase(PlugInfo info, Application application)
+	private void setApplicationBase(PlugInfo plugin, Application application)
 			throws Exception {
-		info.setApplication(application);
-		//
-		PluginContextWrapper ctxWrapper = new PluginContextWrapper(context,
-				info);
-		info.appWrapper = ctxWrapper;
-		// attach
-		Method attachMethod = android.app.Application.class.getDeclaredMethod(
-				"attach", Context.class);
-		attachMethod.setAccessible(true);
-		attachMethod.invoke(application, ctxWrapper);
-		if (context instanceof Application) {
-			if (android.os.Build.VERSION.SDK_INT >= 14) {
-				Application.class.getMethod("registerComponentCallbacks",
-						Class.forName("android.content.ComponentCallbacks"))
-						.invoke(context, application);
+		
+		synchronized (plugin) {
+			if (plugin.getApplication() != null) {
+				// set plugin's Application only once
+				return;
 			}
+			plugin.setApplication(application);
+			//
+			PluginContextWrapper ctxWrapper = new PluginContextWrapper(context,
+					plugin);
+			plugin.appWrapper = ctxWrapper;
+			// attach
+			Method attachMethod = android.app.Application.class.getDeclaredMethod(
+					"attach", Context.class);
+			attachMethod.setAccessible(true);
+			attachMethod.invoke(application, ctxWrapper);
+			if (context instanceof Application) {
+				if (android.os.Build.VERSION.SDK_INT >= 14) {
+					Application.class.getMethod("registerComponentCallbacks",
+							Class.forName("android.content.ComponentCallbacks"))
+							.invoke(context, application);
+				}
+			}
+			
 		}
 	}
 
