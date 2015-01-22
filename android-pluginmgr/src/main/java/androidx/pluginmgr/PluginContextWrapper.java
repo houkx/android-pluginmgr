@@ -36,8 +36,10 @@ class PluginContextWrapper extends ContextWrapper {
 	private static final String tag = "PluginContextWrapper";
 	private ApplicationInfo applicationInfo;
 	private File fileDir;
+	private Context baseApplication;
 	public PluginContextWrapper(Context base, PlugInfo plugin) {
 		super(base);
+		baseApplication = base;
 		this.plugin = plugin;
 		applicationInfo = new ApplicationInfo(super.getApplicationInfo());
 		applicationInfo.sourceDir = plugin.getFilePath();
@@ -91,7 +93,7 @@ class PluginContextWrapper extends ContextWrapper {
 	@Override
 	public Context getApplicationContext() {
 		Log.d(tag, "getApplicationContext()");
-		return this;
+		return plugin.getApplication();
 	}
 
 	@Override
