@@ -57,6 +57,7 @@ import com.google.dexmaker.dx.dex.DexFormat;
 class ActivityClassGenerator {
 	private static final String FIELD_ASSERTMANAGER = "mAssertManager";
 	private static final String FIELD_RESOURCES = "mResources";
+	private static final String FIELD_OnCreated = "mOnCreated";
 	
 	public static void createActivityDex(String superClassName,
 			String targetClassName, File saveTo, String pluginId, String pkgName)
@@ -135,6 +136,7 @@ class ActivityClassGenerator {
 		declareMethod_getComponentName(dexMaker, generatedType, superType, superClassName);
 		declareMethod_getPackageName(dexMaker, generatedType, pkgName);
 		declareMethod_getIntent(dexMaker, generatedType, superType);
+//		declareMethod_setTheme(dexMaker, generatedType, superType);
 		// Create the dex Content
 		byte[] dex = dexMaker.generate();
 		return dex;
@@ -157,6 +159,8 @@ class ActivityClassGenerator {
 		dexMaker.declare(asm, PRIVATE, null);
 		FieldId<D, Resources> res = generatedType.getField(Resources, FIELD_RESOURCES);
 		dexMaker.declare(res, PRIVATE, null);
+		FieldId<D, Boolean> onCreated = generatedType.getField(TypeId.BOOLEAN, FIELD_OnCreated);
+		dexMaker.declare(onCreated, PRIVATE, false);
 	}
 
 	// Note: 必须是最后一个Local变量处调用
@@ -168,7 +172,35 @@ class ActivityClassGenerator {
 		methodCode.sget(fieldId, pluginId);
 		return pluginId;
 	}
-
+	
+	private static <S, D extends S> void declareMethod_setTheme(
+			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
+		// Types
+		TypeId<Activity> Activity = TypeId.get(Activity.class);
+		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
+				"setTheme", TypeId.INT);
+		MethodId<D, Void> superMethod = generatedType.getMethod(TypeId.VOID,
+				"setTheme", TypeId.INT);
+		TypeId<ActivityOverider> ActivityOverider = TypeId
+				.get(ActivityOverider.class);
+//		overrideSetTheme(Activity fromAct,String pluginId,boolean created,int themRes) 
+		MethodId<ActivityOverider, Void> methodOveride = ActivityOverider
+				.getMethod(TypeId.VOID, "overrideSetTheme",
+						Activity,TypeId.STRING,TypeId.BOOLEAN,TypeId.INT
+						);
+		// locals 
+		Code methodCode = dexMaker.declare(method, PROTECTED);
+		Local<D> localThis = methodCode.getThis(generatedType);
+		Local<Integer> resId = methodCode.newLocal(TypeId.INT);
+		Local<Boolean> lcoalCreated = methodCode.newLocal(TypeId.BOOLEAN);
+		Local<String> pluginId = get_pluginId(generatedType, methodCode);
+		
+		FieldId<D, Boolean> onCreated = generatedType.getField(TypeId.BOOLEAN, FIELD_OnCreated);
+		methodCode.iget(onCreated, lcoalCreated, localThis);
+		
+//		methodCode.invokeStatic(methodOveride, resId, args)
+	}
+	
 	private static <S, D extends S> void declareMethod_attachBaseContext(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		// Types
@@ -318,7 +350,12 @@ class ActivityClassGenerator {
 		// locals 
 		Local<D> localThis = methodCode.getThis(generatedType);
 		Local<Bundle> lcoalBundle = methodCode.getParameter(0, Bundle);
+		Local<Boolean> lcoalCreated = methodCode.newLocal(TypeId.BOOLEAN);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
+		// this.mOnCreated = true;
+		FieldId<D, Boolean> onCreated = generatedType.getField(TypeId.BOOLEAN, FIELD_OnCreated);
+		methodCode.loadConstant(lcoalCreated, true);
+		methodCode.iput(onCreated, localThis, lcoalCreated);
 		
 		MethodId<ActivityOverider, Void> method_call_onCreate = ActivityOverider
 				.getMethod(TypeId.VOID, "callback_onCreate", TypeId.STRING,

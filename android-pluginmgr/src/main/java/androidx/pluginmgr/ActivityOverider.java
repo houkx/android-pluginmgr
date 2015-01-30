@@ -218,7 +218,7 @@ public class ActivityOverider {
 			Log.e(tag, Log.getStackTraceString(e));
 		}
 	}
-	public static Object[] overrideAttachBaseContext(String pluginId, Activity fromAct,Context base){
+	public static Object[] overrideAttachBaseContext(final String pluginId,final Activity fromAct,Context base){
 		Log.i(tag, "overrideAttachBaseContext: pluginId="+pluginId+", activity="+fromAct.getClass().getSuperclass().getName());
 		// 
 		PlugInfo plugin = PluginManager.getInstance().getPluginById(pluginId);
@@ -231,9 +231,44 @@ public class ActivityOverider {
 			}
 		}
 		PluginActivityWrapper actWrapper = new PluginActivityWrapper(base, plugin.appWrapper, plugin);
+		Thread changeActInfoTask = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				Field field_mActivityInfo=null;
+				try {
+					field_mActivityInfo = Activity.class.getDeclaredField("mActivityInfo");
+					field_mActivityInfo.setAccessible(true);
+				}  catch (Exception e) {
+					Log.e(tag, Log.getStackTraceString(e));
+					return;
+				}
+				ActivityInfo actInfoOrig =null;
+				while(actInfoOrig == null){
+					try {
+						actInfoOrig = (ActivityInfo) field_mActivityInfo.get(fromAct);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+				PluginManager con = PluginManager.getInstance();
+				PlugInfo plugin = con.getPluginById(pluginId);
+				String actName = fromAct.getClass().getSuperclass().getName();
+				ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+				actInfoOrig.theme = actInfo.theme;
+				actInfoOrig.applicationInfo.theme = plugin.getPackageInfo().applicationInfo.theme;
+				Log.d(tag, "changeTheme: pluginId = "+plugin+", actName = "+actName);
+			}
+		});
+		changeActInfoTask.setDaemon(true);
+		changeActInfoTask.start();
 		return new Object[] { actWrapper, plugin.getAssetManager() };
 	}
-
+	
+	public static int overrideSetTheme(Activity fromAct,String pluginId,boolean created,int themRes) {
+		//TODO
+		return 0;
+	}
+	
 	/**
 	 * 按下back键的方法调用
 	 * 
@@ -269,18 +304,18 @@ public class ActivityOverider {
 		}  catch (Exception e) {
 			e.printStackTrace();
 		}
-		String actName = fromAct.getClass().getSuperclass().getName();
-		Log.d(tag, "pluginId = "+plugin+", actName = "+actName);
-		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
-		int themeResId = actInfo.theme;
-		Log.d(tag,"actTheme="+themeResId);
-		if (themeResId == 0) {
-			themeResId = plugin.getPackageInfo().applicationInfo.theme;
-			Log.d(tag,"applicationTheme="+themeResId);
-		}
-		if (themeResId != 0) {
-			fromAct.setTheme(themeResId);
-		}
+//		String actName = fromAct.getClass().getSuperclass().getName();
+//		Log.d(tag, "pluginId = "+plugin+", actName = "+actName);
+//		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+//		int themeResId = actInfo.theme;
+//		Log.d(tag,"actTheme="+themeResId);
+//		if (themeResId == 0) {
+//			themeResId = plugin.getPackageInfo().applicationInfo.theme;
+//			Log.d(tag,"applicationTheme="+themeResId);
+//		}
+//		if (themeResId != 0) {
+//			fromAct.setTheme(themeResId);
+//		}
 		// 如果是三星Galaxy S4 手机，则使用包装的LayoutInflater替换原LayoutInflater
 		// 这款手机在解析内置的布局文件时有各种错误
 		if (android.os.Build.MODEL.equals("GT-I9500")) {
