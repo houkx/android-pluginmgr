@@ -264,9 +264,13 @@ public class ActivityOverider {
 		return new Object[] { actWrapper, plugin.getAssetManager() };
 	}
 	
-	public static int overrideSetTheme(Activity fromAct,String pluginId,boolean created,int themRes) {
-		//TODO
-		return 0;
+	public static int getPlugActivityTheme(Activity fromAct,String pluginId) {
+		PluginManager con = PluginManager.getInstance();
+		PlugInfo plugin = con.getPluginById(pluginId);
+		String actName = fromAct.getClass().getSuperclass().getName();
+		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+		int actTheme = actInfo.theme;
+		return actTheme!=0?actTheme: plugin.getPackageInfo().applicationInfo.theme;
 	}
 	
 	/**

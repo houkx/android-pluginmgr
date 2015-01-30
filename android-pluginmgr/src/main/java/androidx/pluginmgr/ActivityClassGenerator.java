@@ -183,11 +183,10 @@ class ActivityClassGenerator {
 				"setTheme", TypeId.INT);
 		TypeId<ActivityOverider> ActivityOverider = TypeId
 				.get(ActivityOverider.class);
-//		overrideSetTheme(Activity fromAct,String pluginId,boolean created,int themRes) 
-		MethodId<ActivityOverider, Void> methodOveride = ActivityOverider
-				.getMethod(TypeId.VOID, "overrideSetTheme",
-						Activity,TypeId.STRING,TypeId.BOOLEAN,TypeId.INT
-						);
+//		public static int getPlugActivityTheme(Activity fromAct,String pluginId) 
+		MethodId<ActivityOverider, Integer> methodOveride = ActivityOverider
+				.getMethod(TypeId.INT, "getPlugActivityTheme", Activity,
+						TypeId.STRING);
 		// locals 
 		Code methodCode = dexMaker.declare(method, PROTECTED);
 		Local<D> localThis = methodCode.getThis(generatedType);
@@ -198,7 +197,7 @@ class ActivityClassGenerator {
 		FieldId<D, Boolean> onCreated = generatedType.getField(TypeId.BOOLEAN, FIELD_OnCreated);
 		methodCode.iget(onCreated, lcoalCreated, localThis);
 		
-//		methodCode.invokeStatic(methodOveride, resId, args)
+		methodCode.invokeStatic(methodOveride, resId, localThis,pluginId);
 	}
 	
 	private static <S, D extends S> void declareMethod_attachBaseContext(
