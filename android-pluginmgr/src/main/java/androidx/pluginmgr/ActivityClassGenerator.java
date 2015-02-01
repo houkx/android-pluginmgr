@@ -57,7 +57,7 @@ import com.google.dexmaker.dx.dex.DexFormat;
 class ActivityClassGenerator {
 	private static final String FIELD_ASSERTMANAGER = "mAssertManager";
 	private static final String FIELD_RESOURCES = "mResources";
-	private static final String FIELD_OnCreated = "mOnCreated";
+	private static final String FIELD_mOnCreated = "mOnCreated";
 	
 	public static void createActivityDex(String superClassName,
 			String targetClassName, File saveTo, String pluginId, String pkgName)
@@ -136,7 +136,7 @@ class ActivityClassGenerator {
 		declareMethod_getComponentName(dexMaker, generatedType, superType, superClassName);
 		declareMethod_getPackageName(dexMaker, generatedType, pkgName);
 		declareMethod_getIntent(dexMaker, generatedType, superType);
-//		declareMethod_setTheme(dexMaker, generatedType, superType);
+		declareMethod_setTheme(dexMaker, generatedType, superType);
 		// Create the dex Content
 		byte[] dex = dexMaker.generate();
 		return dex;
@@ -159,8 +159,8 @@ class ActivityClassGenerator {
 		dexMaker.declare(asm, PRIVATE, null);
 		FieldId<D, Resources> res = generatedType.getField(Resources, FIELD_RESOURCES);
 		dexMaker.declare(res, PRIVATE, null);
-		FieldId<D, Boolean> onCreated = generatedType.getField(TypeId.BOOLEAN, FIELD_OnCreated);
-		dexMaker.declare(onCreated, PRIVATE, false);
+		FieldId<D, Boolean> beforeOnCreate = generatedType.getField(TypeId.BOOLEAN, FIELD_mOnCreated);
+		dexMaker.declare(beforeOnCreate, PRIVATE, null);
 	}
 
 	// Note: 必须是最后一个Local变量处调用
@@ -176,28 +176,50 @@ class ActivityClassGenerator {
 	private static <S, D extends S> void declareMethod_setTheme(
 			DexMaker dexMaker, TypeId<D> generatedType, TypeId<S> superType) {
 		// Types
-		TypeId<Activity> Activity = TypeId.get(Activity.class);
+		final String methodName = "setTheme";
 		MethodId<D, Void> method = generatedType.getMethod(TypeId.VOID,
-				"setTheme", TypeId.INT);
-		MethodId<D, Void> superMethod = generatedType.getMethod(TypeId.VOID,
-				"setTheme", TypeId.INT);
+				methodName, TypeId.INT);
+		
 		TypeId<ActivityOverider> ActivityOverider = TypeId
 				.get(ActivityOverider.class);
-//		public static int getPlugActivityTheme(Activity fromAct,String pluginId) 
+		// static int ActivityOverider::getPlugActivityTheme(Activity fromAct,String pluginId)
 		MethodId<ActivityOverider, Integer> methodOveride = ActivityOverider
-				.getMethod(TypeId.INT, "getPlugActivityTheme", Activity,
+				.getMethod(TypeId.INT, "getPlugActivityTheme", TypeId.get(Activity.class),
 						TypeId.STRING);
 		// locals 
 		Code methodCode = dexMaker.declare(method, PROTECTED);
 		Local<D> localThis = methodCode.getThis(generatedType);
-		Local<Integer> resId = methodCode.newLocal(TypeId.INT);
-		Local<Boolean> lcoalCreated = methodCode.newLocal(TypeId.BOOLEAN);
+		Local<Integer> resId = methodCode.getParameter(0, TypeId.INT);
+		Local<Integer> int0 = methodCode.newLocal(TypeId.INT);
+		Local<Boolean> lcoalonCreate = methodCode.newLocal(TypeId.BOOLEAN);
+		Local<Boolean> localFalse = methodCode.newLocal(TypeId.BOOLEAN);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
+		/* int resId = paramThemeId;
+		 * if( !OnCreated ){
+		 *    resId = ActivityOverider.getPlugActivityTheme(this,pluginId);
+		 * }
+		 * if(resId!=0){
+		 *   super.setTheme(resId);
+		 * } 
+		 */
+		FieldId<D, Boolean> onCreated = generatedType.getField(TypeId.BOOLEAN, FIELD_mOnCreated);
+		methodCode.iget(onCreated, lcoalonCreate, localThis);
+		{
+			Label ifBeforeOncreate = new Label();
+			methodCode.loadConstant(localFalse, false);
+			methodCode.compare(Comparison.NE, ifBeforeOncreate, lcoalonCreate, localFalse);
+			methodCode.invokeStatic(methodOveride, resId, localThis,pluginId);
+			methodCode.mark(ifBeforeOncreate);
+		}
+		//
+		Label if_resId = new Label();
+		methodCode.loadConstant(int0, 0);
+		methodCode.compare(Comparison.EQ, if_resId, resId, int0);
+		MethodId<S, Void> superMethod = superType.getMethod(TypeId.VOID, methodName, TypeId.INT);
+		methodCode.invokeSuper(superMethod, null, localThis, resId);
+		methodCode.mark(if_resId);
 		
-		FieldId<D, Boolean> onCreated = generatedType.getField(TypeId.BOOLEAN, FIELD_OnCreated);
-		methodCode.iget(onCreated, lcoalCreated, localThis);
-		
-		methodCode.invokeStatic(methodOveride, resId, localThis,pluginId);
+		methodCode.returnVoid();
 	}
 	
 	private static <S, D extends S> void declareMethod_attachBaseContext(
@@ -352,9 +374,9 @@ class ActivityClassGenerator {
 		Local<Boolean> lcoalCreated = methodCode.newLocal(TypeId.BOOLEAN);
 		Local<String> pluginId = get_pluginId(generatedType, methodCode);
 		// this.mOnCreated = true;
-		FieldId<D, Boolean> onCreated = generatedType.getField(TypeId.BOOLEAN, FIELD_OnCreated);
+		FieldId<D, Boolean> beforeOnCreate = generatedType.getField(TypeId.BOOLEAN, FIELD_mOnCreated);
 		methodCode.loadConstant(lcoalCreated, true);
-		methodCode.iput(onCreated, localThis, lcoalCreated);
+		methodCode.iput(beforeOnCreate, localThis, lcoalCreated);
 		
 		MethodId<ActivityOverider, Void> method_call_onCreate = ActivityOverider
 				.getMethod(TypeId.VOID, "callback_onCreate", TypeId.STRING,
@@ -422,7 +444,7 @@ class ActivityClassGenerator {
 		Local<D> localThis = constructorCode.getThis(generatedType);
 		MethodId<S, Void> superConstructor = superType.getConstructor();
 		constructorCode.invokeDirect(superConstructor, null, localThis);
-		constructorCode.returnVoid();// void 方法也必须显式的声明返回void
+		constructorCode.returnVoid();
 	}
 
 	private static <S, D extends S> void declareMethod_startActivityForResult(

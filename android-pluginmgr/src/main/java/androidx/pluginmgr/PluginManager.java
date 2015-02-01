@@ -158,6 +158,7 @@ public class PluginManager implements FileFilter {
 
 
 	private void init(Context ctx) {
+		Log.i(tag, "init()...");
 		context = ctx;
 		File optimizedDexPath = ctx.getDir("plugsout", Context.MODE_PRIVATE);
 		if (!optimizedDexPath.exists()) {
@@ -167,6 +168,7 @@ public class PluginManager implements FileFilter {
 		dexInternalStoragePath = context
 				.getDir("plugins", Context.MODE_PRIVATE);
 		dexInternalStoragePath.mkdirs();
+		// change ClassLoader
 		try {
 			Object mPackageInfo = ReflectionUtils.getFieldValue(ctx,
 					"mBase.mPackageInfo", true);
