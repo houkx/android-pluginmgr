@@ -36,10 +36,10 @@ import android.content.res.XmlResourceParser;
 import android.graphics.drawable.Drawable;
 
 /**
- * 定制的PackageManager
+ * Customer PackageManager
  * <p>
  * 
- * TODO 未完成，尚未投入使用，准备用到{@link PluginContextWrapper#getPackageManager}
+ * TODO unfinished, prepare use in {@link PluginContextWrapper#getPackageManager}
  * 
  * @author HouKangxi
  *

@@ -35,7 +35,7 @@ import android.content.res.Resources;
 import android.util.Log;
 
 /**
- * 插件管理器
+ * The Plug-in Manager
  * 
  * @author HouKangxi
  */
