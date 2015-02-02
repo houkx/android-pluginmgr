@@ -39,7 +39,7 @@ public class MainActivity extends Activity {
 		Button pluginLoader = (Button) findViewById(R.id.pluginLoader);
 		pluglistView = (ListView) findViewById(R.id.pluglist);
 
-		plugMgr = PluginManager.getInstance(getApplication());
+		plugMgr = PluginManager.getInstance(this);
 
 		String pluginSrcDir = sdcard + "/Download";
 		pluginDirTxt.setText(pluginSrcDir);
@@ -94,13 +94,8 @@ public class MainActivity extends Activity {
 	}
 
 	private void plugItemClick(int position) {
-		final PlugInfo plug = (PlugInfo) pluglistView.getItemAtPosition(position);
-//		new Thread(new Runnable() {
-//			@Override
-//			public void run() {
-				plugMgr.startMainActivity(MainActivity.this, plug.getPackageName());
-//			}
-//		}).start();
+		PlugInfo plug = (PlugInfo) pluglistView.getItemAtPosition(position);
+		plugMgr.startMainActivity(this, plug.getPackageName());
 	}
 
 	private void setPlugins(final Collection<PlugInfo> plugs) {
