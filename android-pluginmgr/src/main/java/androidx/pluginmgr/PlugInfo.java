@@ -16,10 +16,12 @@
 package androidx.pluginmgr;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import android.app.Application;
-import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.ResolveInfo;
@@ -40,7 +42,7 @@ public class PlugInfo {
 	private String id;
 	private String filePath;
 	private PackageInfo packageInfo;
-	private List<ResolveInfo> activities = new ArrayList<ResolveInfo>();
+	private Map<String,ResolveInfo> activities;
 	private ResolveInfo mainActivity;
 	private List<ResolveInfo> services;
 	private List<ResolveInfo> receivers;
@@ -50,7 +52,7 @@ public class PlugInfo {
 	private transient Application application;
 	private transient AssetManager assetManager;
 	private transient Resources resources;
-
+	PluginContextWrapper appWrapper;
 	//
 	// private transient volatile String currentActivityClass;
 
@@ -115,24 +117,33 @@ public class PlugInfo {
 		}
 	}
 
-	public ActivityInfo findActivityByClassName(String actName) {
+	 ActivityInfo findActivityByClassNameFromPkg(String actName) {
 		if (packageInfo.activities == null) {
 			return null;
 		}
 		for (ActivityInfo act : packageInfo.activities) {
-			if (act.name.equals(actName)) {
-				return act;
-			}
+           if(act.name.equals(actName)){
+        	   return act;
+           }
 		}
 		return null;
-
+	}
+	public ActivityInfo findActivityByClassName(String actName) {
+		if (packageInfo.activities == null) {
+			return null;
+		}
+		ResolveInfo act = activities.get(actName);
+		if (act == null) {
+			return null;
+		}
+		return act.activityInfo;
 	}
 
 	public ActivityInfo findActivityByAction(String action) {
 		if (activities == null || activities.isEmpty()) {
 			return null;
 		}
-		for (ResolveInfo act : activities) {
+		for (ResolveInfo act : activities.values()) {
 			if (act.filter != null && act.filter.hasAction(action)) {
 				return act.activityInfo;
 			}
@@ -176,10 +187,14 @@ public class PlugInfo {
 		return null;
 	}
 	public void addActivity(ResolveInfo activity) {
-		activities.add(activity);
+		if (activities == null) {
+			activities = new HashMap<String, ResolveInfo>(20);
+		}
+		activities.put(activity.activityInfo.name,activity);
 		if (mainActivity == null && activity.filter != null
-				&& activity.filter.hasAction(Intent.ACTION_MAIN)
-				&& activity.filter.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+				&& activity.filter.hasAction("android.intent.action.MAIN")
+				&& activity.filter.hasCategory("android.intent.category.LAUNCHER")
+				) {
 			mainActivity = activity;
 		}
 	}
@@ -220,6 +235,7 @@ public class PlugInfo {
 
 	public void setPackageInfo(PackageInfo packageInfo) {
 		this.packageInfo = packageInfo;
+		activities = new HashMap<String, ResolveInfo>(packageInfo.activities.length);
 	}
 
 	public PluginClassLoader getClassLoader() {
@@ -262,8 +278,11 @@ public class PlugInfo {
 	// this.currentActivityClass = currentActivityClass;
 	// }
 
-	public List<ResolveInfo> getActivities() {
-		return activities;
+	public Collection<ResolveInfo> getActivities() {
+		if (activities == null) {
+			return null;
+		}
+		return activities.values();
 	}
 
 	public List<ResolveInfo> getServices() {

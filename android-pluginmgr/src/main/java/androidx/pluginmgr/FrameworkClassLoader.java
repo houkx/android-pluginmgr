@@ -24,35 +24,36 @@ import android.util.Log;
  *
  */
 class FrameworkClassLoader extends ClassLoader {
-	private volatile String[] plugIdAndActname;
+	private String plugId;
+	private String actName;
 
 	public FrameworkClassLoader(ClassLoader parent) {
 		super(parent);
 	}
 
 	String newActivityClassName(String plugId, String actName) {
-		plugIdAndActname = new String[] { plugId, actName };
+		this.plugId = plugId;
+		this.actName = actName;
 		return ActivityOverider.targetClassName;
 	}
 
 	protected Class<?> loadClass(String className, boolean resolv)
 			throws ClassNotFoundException {
 		Log.i("cl", "loadClass: " + className);
-		String[] plugIdAndActname = this.plugIdAndActname;
-		Log.i("cl", "plugIdAndActname = " + java.util.Arrays.toString(plugIdAndActname));
-		if (plugIdAndActname != null) {
-			String pluginId = plugIdAndActname[0];
-			
+		if (plugId != null) {
+			String pluginId = plugId;
+
 			PlugInfo plugin = PluginManager.getInstance().getPluginById(
 					pluginId);
 			Log.i("cl", "plugin = " + plugin);
 			if (plugin != null) {
 				try {
 					if (className.equals(ActivityOverider.targetClassName)) {
-						String actClassName = plugIdAndActname[1];
+						// Thread.dumpStack();
+						String actClassName = actName;
 						return plugin.getClassLoader().loadActivityClass(
 								actClassName);
-					}else{
+					} else {
 						return plugin.getClassLoader().loadClass(className);
 					}
 				} catch (ClassNotFoundException e) {
@@ -60,7 +61,7 @@ class FrameworkClassLoader extends ClassLoader {
 				}
 			}
 		}
-		
+
 		return super.loadClass(className, resolv);
 	}
 }

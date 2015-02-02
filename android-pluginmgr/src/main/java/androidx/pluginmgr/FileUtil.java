@@ -47,6 +47,28 @@ class FileUtil {
 		}
 		bos.close(); 
 	}
+	public static void writeToFile1(InputStream dataIns, File target) throws IOException {
+		FileOutputStream fo = null;
+		ReadableByteChannel src = null;
+		FileChannel out = null;
+		try {
+			int len = dataIns.available();
+			src = Channels.newChannel(dataIns);
+			fo = new FileOutputStream(target);
+			out = fo.getChannel();
+			out.transferFrom(src, 0, len);
+		} finally {
+			if (fo != null) {
+				fo.close();
+			}
+			if (src != null) {
+				src.close();
+			}
+			if (out != null) {
+				out.close();
+			}
+		}
+	}
 	
 	public static void writeToFile(byte[] data, File target) throws IOException {
 		FileOutputStream fo = null;

@@ -51,7 +51,7 @@ class PluginClassLoader extends DexClassLoader {
 	Class<?> loadActivityClass(final String actClassName) throws ClassNotFoundException {
 		Log.d(tag, "loadActivityClass: " + actClassName);
 
-		// 在类加载之前检查创建代理的Activity dex文件
+		// 在类加载之前检查创建代理的Activity dex文件，以免调用者忘记生成此文件
 		File dexSavePath = ActivityOverider.createProxyDex(thisPlugin, actClassName, true);
 		ClassLoader actLoader = proxyActivityLoaderMap.get(actClassName);
 		if (actLoader == null) {
