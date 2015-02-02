@@ -1,4 +1,4 @@
-1 PackageManager , meta-data, provider
+1 宿主使用v4|v7,透明主题, PackageManager , meta-data, provider
 2 inner & outer ClassLoader
 3 load class with extra parameter such as pluginId, think java.lang.String in android
 4 framework with android.support

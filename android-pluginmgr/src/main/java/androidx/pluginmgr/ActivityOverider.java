@@ -26,6 +26,7 @@ import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.ContextThemeWrapper;
 import android.view.Window;
 
 /**
@@ -219,7 +220,9 @@ public class ActivityOverider {
 		}
 	}
 	public static Object[] overrideAttachBaseContext(final String pluginId,final Activity fromAct,Context base){
-		Log.i(tag, "overrideAttachBaseContext: pluginId="+pluginId+", activity="+fromAct.getClass().getSuperclass().getName());
+	
+		Log.i(tag, "overrideAttachBaseContext: pluginId="+pluginId+", activity="+fromAct.getClass().getSuperclass().getName()
+				);
 		// 
 		PlugInfo plugin = PluginManager.getInstance().getPluginById(pluginId);
 		if (plugin.getApplication() == null) {
@@ -231,37 +234,37 @@ public class ActivityOverider {
 			}
 		}
 		PluginActivityWrapper actWrapper = new PluginActivityWrapper(base, plugin.appWrapper, plugin);
-		Thread changeActInfoTask = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				Field field_mActivityInfo=null;
-				try {
-					field_mActivityInfo = Activity.class.getDeclaredField("mActivityInfo");
-					field_mActivityInfo.setAccessible(true);
-				}  catch (Exception e) {
-					Log.e(tag, Log.getStackTraceString(e));
-					return;
-				}
-				ActivityInfo actInfoOrig =null;
-				while(actInfoOrig == null){
-					try {
-						actInfoOrig = (ActivityInfo) field_mActivityInfo.get(fromAct);
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				}
-				PluginManager con = PluginManager.getInstance();
-				PlugInfo plugin = con.getPluginById(pluginId);
-				String actName = fromAct.getClass().getSuperclass().getName();
-				ActivityInfo actInfo = plugin.findActivityByClassName(actName);
-				actInfoOrig.theme = actInfo.theme;
-				actInfoOrig.applicationInfo.theme = plugin.getPackageInfo().applicationInfo.theme;
-				Log.d(tag, "changeTheme: pluginId = "+plugin+", actName = "+actName);
-			}
-		});
-		changeActInfoTask.setDaemon(true);
-		changeActInfoTask.start();
 		return new Object[] { actWrapper, plugin.getAssetManager() };
+	}
+	
+	private static void changeActivityInfo(Context activity){
+		final String actName = activity.getClass().getSuperclass().getName();
+		Log.d(tag, "changeActivityInfo: activity = "+activity+", class = "+actName);
+		if(!activity.getClass().getName().equals(targetClassName)){
+			Log.w(tag, "not a Proxy Activity ,then return.");
+			return;
+		}
+		Field field_mActivityInfo=null;
+		try {
+			field_mActivityInfo = Activity.class.getDeclaredField("mActivityInfo");
+			field_mActivityInfo.setAccessible(true);
+		}  catch (Exception e) {
+			Log.e(tag, Log.getStackTraceString(e));
+			return;
+		}
+		PluginManager con = PluginManager.getInstance();
+		PlugInfo plugin = con.getPluginByPackageName(activity.getPackageName());
+		
+		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+		actInfo.applicationInfo = plugin.getPackageInfo().applicationInfo;
+		try {
+			field_mActivityInfo.set(activity, actInfo);
+		} catch (Exception e) {
+			Log.e(tag, Log.getStackTraceString(e));
+		}
+		
+		Log.i(tag, "changeActivityInfo->changeTheme: "+" theme = "+actInfo.getThemeResource()
+				+", icon = "+actInfo.getIconResource()+", logo = "+actInfo.logo);
 	}
 	
 	public static int getPlugActivityTheme(Activity fromAct,String pluginId) {
@@ -269,8 +272,10 @@ public class ActivityOverider {
 		PlugInfo plugin = con.getPluginById(pluginId);
 		String actName = fromAct.getClass().getSuperclass().getName();
 		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
-		int actTheme = actInfo.theme;
-		return actTheme!=0?actTheme: plugin.getPackageInfo().applicationInfo.theme;
+		int rs =  actInfo.getThemeResource();
+		Log.d(tag, "getPlugActivityTheme: theme="+rs+", actName="+actName);
+		changeActivityInfo(fromAct);
+		return rs;
 	}
 	
 	/**
@@ -297,6 +302,8 @@ public class ActivityOverider {
 	// =================== Activity 生命周期回调方法 ==================
 	//
 	public static void callback_onCreate(String pluginId, Activity fromAct) {
+		Log.d(tag, "callback_onCreate(act="+fromAct.getClass().getSuperclass().getName()+", window="+fromAct.getWindow()
+				+ ")");
 		PluginManager con = PluginManager.getInstance();
 		PlugInfo plugin = con.getPluginById(pluginId);
 		// replace Application
@@ -308,18 +315,27 @@ public class ActivityOverider {
 		}  catch (Exception e) {
 			e.printStackTrace();
 		}
-//		String actName = fromAct.getClass().getSuperclass().getName();
-//		Log.d(tag, "pluginId = "+plugin+", actName = "+actName);
-//		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
-//		int themeResId = actInfo.theme;
-//		Log.d(tag,"actTheme="+themeResId);
-//		if (themeResId == 0) {
-//			themeResId = plugin.getPackageInfo().applicationInfo.theme;
-//			Log.d(tag,"applicationTheme="+themeResId);
-//		}
-//		if (themeResId != 0) {
-//			fromAct.setTheme(themeResId);
-//		}
+		{
+
+			String actName = fromAct.getClass().getSuperclass().getName();
+			ActivityInfo actInfo = plugin.findActivityByClassName(actName);
+			int resTheme = actInfo.getThemeResource();
+			if (resTheme != 0) {
+				boolean hasNotSetTheme = true;
+				try {
+					Field mTheme = ContextThemeWrapper.class
+							.getDeclaredField("mTheme");
+					mTheme.setAccessible(true);
+					hasNotSetTheme = mTheme.get(fromAct) == null;
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				if (hasNotSetTheme) {
+					changeActivityInfo(fromAct);
+					fromAct.setTheme(resTheme);
+				}
+			}
+		}
 		// 如果是三星Galaxy S4 手机，则使用包装的LayoutInflater替换原LayoutInflater
 		// 这款手机在解析内置的布局文件时有各种错误
 		if (android.os.Build.MODEL.equals("GT-I9500")) {
@@ -343,6 +359,7 @@ public class ActivityOverider {
 	}
 
 	public static void callback_onResume(String pluginId, Activity fromAct) {
+		Log.d(tag, "callback_onResume(act="+fromAct.getClass().getSuperclass().getName()+")");
 		PluginActivityLifeCycleCallback callback = PluginManager.getInstance()
 				.getPluginActivityLifeCycleCallback();
 		if (callback != null) {

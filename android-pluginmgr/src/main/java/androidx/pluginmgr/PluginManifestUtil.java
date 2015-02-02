@@ -180,7 +180,7 @@ class PluginManifestUtil {
 		String packageName = info.getPackageInfo().packageName;
 		activityName = getName(activityName, packageName);
 		ResolveInfo act = new ResolveInfo();
-		act.activityInfo = info.findActivityByClassName(activityName);
+		act.activityInfo = info.findActivityByClassNameFromPkg(activityName);
 		do {
 			switch (eventType) {
 			case XmlPullParser.START_TAG: {
