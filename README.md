@@ -3,6 +3,8 @@
 ## Introduction ##
  PluginManager is used to manage android applications like [eclipse](http://eclipse.org/) plugins.
 you can start an activity from an uninstalled apk placed in sdcard,just like it has installed or registed in the application's `AndroidManifest.xml`.
+### Version
+[ ![Download](https://github.com/houkx/android-pluginmgr/resources/download.svg) ](https://github.com/houkx/android-pluginmgr/archive/master.zip)
 ### Support Features
 - a **normal** apk is regard as **plug-in**
 - start **activity** from plug-in
@@ -13,7 +15,7 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
 - support android2.x
 
  it's easy to use:
-### Steps:
+### How to use:
 
 - declare permission in your `AndroidManifest.xml`: 
 
