@@ -18,24 +18,24 @@ package androidx.pluginmgr;
 import java.io.File;
 
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.content.res.Resources.Theme;
 import android.util.Log;
+import android.view.ContextThemeWrapper;
 
 /**
  * @author HouKangxi
  *
  */
-class PluginActivityWrapper extends ContextWrapper {
+class PluginActivityWrapper extends ContextThemeWrapper {
 	private static final String tag = "PluginActivityWrapper";
 	private PlugInfo plugin;
 	private Context appWrapper;
 	public PluginActivityWrapper(Context base, Context appWrapper,PlugInfo plugin) {
-		super(base);
+		attachBaseContext(base);
 		this.plugin = plugin;
 		this.appWrapper = appWrapper;
 	}
