@@ -246,10 +246,11 @@ public class ActivityOverider {
 			Log.w(tag, "not a Proxy Activity ,then return.");
 			return;
 		}
-		Field field_mActivityInfo=null;
+		ActivityInfo origActInfo = null;
 		try {
-			field_mActivityInfo = Activity.class.getDeclaredField("mActivityInfo");
+			Field field_mActivityInfo = Activity.class.getDeclaredField("mActivityInfo");
 			field_mActivityInfo.setAccessible(true);
+			origActInfo = (ActivityInfo) field_mActivityInfo.get(activity);
 		}  catch (Exception e) {
 			Log.e(tag, Log.getStackTraceString(e));
 			return;
@@ -259,15 +260,28 @@ public class ActivityOverider {
 		
 		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
 		actInfo.applicationInfo = plugin.getPackageInfo().applicationInfo;
-		try {
-			ActivityInfo newActInfo = new ActivityInfo(actInfo);
-//			newActInfo.applicationInfo.packageName = activity.getPackageName();
-//			newActInfo.name = ActivityOverider.targetClassName;
-			field_mActivityInfo.set(activity, newActInfo);
-		} catch (Exception e) {
-			Log.e(tag, Log.getStackTraceString(e));
+		if (origActInfo != null) {
+			origActInfo.applicationInfo = actInfo.applicationInfo;
+			origActInfo.configChanges = actInfo.configChanges;
+			origActInfo.descriptionRes = actInfo.descriptionRes;
+			origActInfo.enabled = actInfo.enabled;
+			origActInfo.exported = actInfo.exported;
+			origActInfo.flags = actInfo.flags;
+			origActInfo.icon = actInfo.icon;
+			origActInfo.labelRes = actInfo.labelRes;
+			origActInfo.logo = actInfo.logo;
+			origActInfo.metaData = actInfo.metaData;
+			origActInfo.name = actInfo.name;
+			origActInfo.nonLocalizedLabel = actInfo.nonLocalizedLabel;
+			origActInfo.packageName = actInfo.packageName;
+			origActInfo.permission = actInfo.permission;
+			// origActInfo.processName
+			origActInfo.screenOrientation = actInfo.screenOrientation;
+			origActInfo.softInputMode = actInfo.softInputMode;
+			origActInfo.targetActivity = actInfo.targetActivity;
+			origActInfo.taskAffinity = actInfo.taskAffinity;
+			origActInfo.theme = actInfo.theme;
 		}
-		
 		Log.i(tag, "changeActivityInfo->changeTheme: "+" theme = "+actInfo.getThemeResource()
 				+", icon = "+actInfo.getIconResource()+", logo = "+actInfo.logo);
 	}
