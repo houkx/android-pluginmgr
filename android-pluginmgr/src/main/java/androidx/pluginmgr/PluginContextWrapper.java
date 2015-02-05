@@ -36,6 +36,7 @@ class PluginContextWrapper extends ContextWrapper {
 	private static final String tag = "PluginContextWrapper";
 	private ApplicationInfo applicationInfo;
 	private File fileDir;
+	private PluginPackageManager pkgManager;
 	public PluginContextWrapper(Context base, PlugInfo plugin) {
 		super(base);
 		this.plugin = plugin;
@@ -45,6 +46,7 @@ class PluginContextWrapper extends ContextWrapper {
 				plugin.getId()).getAbsolutePath();
 		fileDir = new File(ActivityOverider.getPluginBaseDir(plugin.getId())
 				.getAbsolutePath() + "/files/");
+		pkgManager = new PluginPackageManager(base.getPackageManager());
 	}
 
 	@Override
@@ -80,7 +82,7 @@ class PluginContextWrapper extends ContextWrapper {
 	public PackageManager getPackageManager() {
 		// TODO Auto-generated method stub
 		Log.d(tag, "PackageManager()");
-		return super.getPackageManager();
+		return pkgManager;
 	}
 
 	@Override

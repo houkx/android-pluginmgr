@@ -33,6 +33,7 @@ import android.view.Window;
  * 提供公共方法供自动生成的Activity调用
  * 
  * @author HouKangxi
+ * @version 1.0
  */
 public class ActivityOverider {
 	private static final String tag = "ActivityOverider";
@@ -187,7 +188,8 @@ public class ActivityOverider {
 		if (android.os.Build.VERSION.SDK_INT < 11) {
 			suffix = ".jar";
 		}
-		File savePath = new File(folder, activity + suffix);
+		File savePath = new File(folder, activity + 
+				String.format("-%d%s", ActivityVersion.VERSION_CODE,suffix));
 		return savePath;
 	}
 
@@ -258,7 +260,10 @@ public class ActivityOverider {
 		ActivityInfo actInfo = plugin.findActivityByClassName(actName);
 		actInfo.applicationInfo = plugin.getPackageInfo().applicationInfo;
 		try {
-			field_mActivityInfo.set(activity, actInfo);
+			ActivityInfo newActInfo = new ActivityInfo(actInfo);
+//			newActInfo.applicationInfo.packageName = activity.getPackageName();
+//			newActInfo.name = ActivityOverider.targetClassName;
+			field_mActivityInfo.set(activity, newActInfo);
 		} catch (Exception e) {
 			Log.e(tag, Log.getStackTraceString(e));
 		}

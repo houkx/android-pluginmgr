@@ -37,7 +37,7 @@ import android.os.Bundle;
  *
  */
 public class ActivityClassGeneratorTest {
-
+	
 //	@Test
 	public void test(){
 		XmlManifestReader.getManifestXMLFromAPK("D://cn/LQLauncher_2.1_ZTE_Launcher_android-19_2014-12-15_18-12-26_87-release.apk");

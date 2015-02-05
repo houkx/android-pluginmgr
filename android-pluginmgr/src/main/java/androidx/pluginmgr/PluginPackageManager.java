@@ -147,7 +147,6 @@ public class PluginPackageManager extends PackageManager {
 		}
 		return orig.getActivityInfo(component, flags);
 	}
-
 	@Override
 	public ActivityInfo getReceiverInfo(ComponentName component, int flags)
 			throws NameNotFoundException {
@@ -287,7 +286,7 @@ public class PluginPackageManager extends PackageManager {
 
 	@Override
 	public List<ResolveInfo> queryIntentActivities(Intent intent, int flags) {
-		// TODO Auto-generated method stub
+		// TODO 查询插件 Activity
 		return orig.queryIntentActivities(intent, flags);
 	}
 
@@ -514,19 +513,16 @@ public class PluginPackageManager extends PackageManager {
 		// TODO Auto-generated method stub
 		return null;
 	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * android.content.pm.PackageManager#getResourcesForApplication(java.lang
-	 * .String)
-	 */
+	
 	@Override
 	public Resources getResourcesForApplication(String appPackageName)
 			throws NameNotFoundException {
-		// TODO Auto-generated method stub
-		return null;
+		PlugInfo plugin = PluginManager.getInstance()
+				.getPluginByPackageName(appPackageName);
+		if (plugin != null) {
+			return plugin.getResources();
+		}
+		return orig.getResourcesForApplication(appPackageName); 
 	}
 
 	/*
@@ -542,16 +538,9 @@ public class PluginPackageManager extends PackageManager {
 		return null;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * android.content.pm.PackageManager#addPackageToPreferred(java.lang.String)
-	 */
 	@Override
 	public void addPackageToPreferred(String packageName) {
-		// TODO Auto-generated method stub
-
+        orig.addPackageToPreferred(packageName);
 	}
 
 	/*

@@ -40,11 +40,11 @@ class PluginActivityWrapper extends ContextThemeWrapper {
 		this.appWrapper = appWrapper;
 	}
 
-	@Override
-	public Theme getTheme() {
-		Log.d(tag, "getTheme()");
-		return null;
-	}
+//	@Override
+//	public Theme getTheme() {
+//		Log.d(tag, "getTheme()");
+//		return null;
+//	}
 
 	@Override
 	public File getFilesDir() {

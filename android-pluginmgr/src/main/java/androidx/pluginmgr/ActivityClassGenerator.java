@@ -52,7 +52,7 @@ import com.google.dexmaker.dx.dex.DexFormat;
  * 动态生成 插件Activity子类的工具类
  * 
  * @author HouKangxi
- * 
+ * @version 1.0
  */
 class ActivityClassGenerator {
 	private static final String FIELD_ASSERTMANAGER = "mAssertManager";
