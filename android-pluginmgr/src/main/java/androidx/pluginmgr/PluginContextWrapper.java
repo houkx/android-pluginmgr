@@ -89,11 +89,10 @@ class PluginContextWrapper extends ContextWrapper {
 	public ApplicationInfo getApplicationInfo() {
 		return applicationInfo;
 	}
-
 	@Override
 	public Context getApplicationContext() {
-		Log.d(tag, "getApplicationContext()");
-		return this;
+		Log.v(tag, "getApplicationContext()");
+		return plugin.getApplication();
 	}
 
 	@Override
