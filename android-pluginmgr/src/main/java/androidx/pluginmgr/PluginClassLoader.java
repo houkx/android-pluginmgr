@@ -55,24 +55,7 @@ class PluginClassLoader extends DexClassLoader {
 		File dexSavePath = ActivityOverider.createProxyDex(thisPlugin, actClassName, true);
 		ClassLoader actLoader = proxyActivityLoaderMap.get(actClassName);
 		if (actLoader == null) {
-			actLoader = new DexClassLoader(dexSavePath.getAbsolutePath(), optimizedDirectory,libraryPath, this){
-				@Override
-				protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-					Log.d("PlugActClassLoader("+ actClassName+")", "loadClass: " + name);
-					if (ActivityOverider.targetClassName.equals(name)) {
-						Class<?> c = findLoadedClass(name);
-						if (c == null) {
-							Log.d("PlugActClassLoader("+ actClassName+")", "findClass");
-							c = findClass(name);
-						}
-						if (resolve) {
-							resolveClass(c);
-						}
-						return c;
-					}
-					return super.loadClass(name, resolve);
-				}
-			};
+			actLoader = new DexClassLoader(dexSavePath.getAbsolutePath(), optimizedDirectory,libraryPath, this);
 			proxyActivityLoaderMap.put(actClassName, actLoader);
 		}
 		return actLoader.loadClass(ActivityOverider.targetClassName);
@@ -103,6 +86,7 @@ class PluginClassLoader extends DexClassLoader {
     }
 	protected Class<?> loadClass(String name, boolean resolve)
 			throws ClassNotFoundException {
+		Log.d(tag, "loadClass: " + name);
 		synchronized (getClassLoadingLock(name)) {
 			// First, check if the class has already been loaded
 			Class<?> c = findLoadedClass(name);
@@ -121,6 +105,8 @@ class PluginClassLoader extends DexClassLoader {
 						c = findClass(name);
 					}
 				}
+			}else{
+				Log.d(tag, "hasLoadedClass: "+name);
 			}
 			if (resolve) {
 				resolveClass(c);
