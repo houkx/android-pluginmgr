@@ -55,6 +55,13 @@ import com.google.dexmaker.dx.dex.DexFormat;
  * @version 1.0
  */
 class ActivityClassGenerator {
+	/**
+	 *  the version of generated Activities
+	 * <p>
+	 * <b>Note:</b> When code of this class changed, VERSION_CODE should +1.
+	 * 
+	 */
+	static final int VERSION_CODE=1;
 	private static final String FIELD_ASSERTMANAGER = "mAssertManager";
 	private static final String FIELD_RESOURCES = "mResources";
 	private static final String FIELD_mOnCreated = "mOnCreated";

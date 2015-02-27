@@ -33,10 +33,13 @@ import org.xmlpull.v1.XmlPullParserFactory;
 
 import android.content.Context;
 import android.content.IntentFilter;
+import android.content.IntentFilter.MalformedMimeTypeException;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.PatternMatcher;
+import android.text.TextUtils;
 
 /**
  * @author HouKangxi
@@ -146,13 +149,13 @@ class PluginManifestUtil {
 				String tag = parser.getName();
 				if (tag.equals("manifest")) {
 					namespaceAndroid = parser.getNamespace("android");
-				} else if ("activity".equals(parser.getName())) {
+				} else if ("activity".equals(tag)) {
 					addActivity(info, namespaceAndroid, parser);
-				} else if ("receiver".equals(parser.getName())) {
+				} else if ("receiver".equals(tag)) {
 					addReceiver(info, namespaceAndroid, parser);
-				} else if ("service".equals(parser.getName())) {
+				} else if ("service".equals(tag)) {
 					addService(info, namespaceAndroid, parser);
-				}else if("application".equals(parser.getName())){
+				}else if("application".equals(tag)){
 					parseApplicationInfo(info, namespaceAndroid, parser);
 				}
 				break;
@@ -175,113 +178,96 @@ class PluginManifestUtil {
 
 	private static void addActivity(PlugInfo info, String namespace,
 			XmlPullParser parser) throws XmlPullParserException, IOException {
-		int eventType = parser.getEventType();
 		String activityName = parser.getAttributeValue(namespace, "name");
 		String packageName = info.getPackageInfo().packageName;
 		activityName = getName(activityName, packageName);
 		ResolveInfo act = new ResolveInfo();
 		act.activityInfo = info.findActivityByClassNameFromPkg(activityName);
-		do {
-			switch (eventType) {
-			case XmlPullParser.START_TAG: {
-				String tag = parser.getName();
-				if ("intent-filter".equals(tag)) {
-					if (act.filter == null) {
-						act.filter = new IntentFilter();
-					}
-				} else if ("action".equals(tag)) {
-					String actionName = parser.getAttributeValue(namespace,
-							"name");
-					act.filter.addAction(actionName);
-				} else if ("category".equals(tag)) {
-					String category = parser.getAttributeValue(namespace,
-							"name");
-					act.filter.addCategory(category);
-				} else if ("data".equals(tag)) {
-					// TODO parse data
-				}
-				break;
-			}
-			}
-			eventType = parser.next();
-		} while (!"activity".equals(parser.getName()));
 		//
+		parseInner(namespace, parser, act, "activity");
 		info.addActivity(act);
 	}
 
 	private static void addService(PlugInfo info, String namespace,
 			XmlPullParser parser) throws XmlPullParserException, IOException {
-		int eventType = parser.getEventType();
 		String serviceName = parser.getAttributeValue(namespace, "name");
 		String packageName = info.getPackageInfo().packageName;
 		serviceName = getName(serviceName, packageName);
 		ResolveInfo service = new ResolveInfo();
 		service.serviceInfo = info.findServiceByClassName(serviceName);
-		do {
-			switch (eventType) {
-			case XmlPullParser.START_TAG: {
-				String tag = parser.getName();
-				if ("intent-filter".equals(tag)) {
-					if (service.filter == null) {
-						service.filter = new IntentFilter();
-					}
-				} else if ("action".equals(tag)) {
-					String actionName = parser.getAttributeValue(namespace,
-							"name");
-					service.filter.addAction(actionName);
-				} else if ("category".equals(tag)) {
-					String category = parser.getAttributeValue(namespace,
-							"name");
-					service.filter.addCategory(category);
-				} else if ("data".equals(tag)) {
-					// TODO parse data
-				}
-				break;
-			}
-			}
-			eventType = parser.next();
-		} while (!"service".equals(parser.getName()));
 		//
+		parseInner(namespace, parser, service, "service");
 		info.addService(service);
 	}
 
 	private static void addReceiver(PlugInfo info, String namespace,
 			XmlPullParser parser) throws XmlPullParserException, IOException {
-		int eventType = parser.getEventType();
 		String receiverName = parser.getAttributeValue(namespace, "name");
 		String packageName = info.getPackageInfo().packageName;
 		receiverName = getName(receiverName, packageName);
 		ResolveInfo receiver = new ResolveInfo();
 		// 此时的activityInfo 表示 receiverInfo
 		receiver.activityInfo = info.findReceiverByClassName(receiverName);
+		parseInner(namespace, parser, receiver, "receiver");
+		//
+		info.addReceiver(receiver);
+	}
+	
+	private static void  parseInner(String namespace,XmlPullParser parser,ResolveInfo rsinfo,String tagName) throws XmlPullParserException, IOException{
+		int eventType = parser.getEventType();
 		do {
 			switch (eventType) {
 			case XmlPullParser.START_TAG: {
 				String tag = parser.getName();
 				if ("intent-filter".equals(tag)) {
-					if (receiver.filter == null) {
-						receiver.filter = new IntentFilter();
+					if (rsinfo.filter == null) {
+						rsinfo.filter = new IntentFilter();
 					}
 				} else if ("action".equals(tag)) {
 					String actionName = parser.getAttributeValue(namespace,
 							"name");
-					receiver.filter.addAction(actionName);
+					rsinfo.filter.addAction(actionName);
 				} else if ("category".equals(tag)) {
 					String category = parser.getAttributeValue(namespace,
 							"name");
-					receiver.filter.addCategory(category);
+					rsinfo.filter.addCategory(category);
 				} else if ("data".equals(tag)) {
 					// TODO parse data
+					String scheme = parser.getAttributeValue(namespace, "scheme");
+					String host = parser.getAttributeValue(namespace, "host");
+					String port = parser.getAttributeValue(namespace, "port");
+					int pathType = PatternMatcher.PATTERN_LITERAL;
+					String path = parser.getAttributeValue(namespace, "path");
+					if(TextUtils.isEmpty(path)){
+						pathType = PatternMatcher.PATTERN_PREFIX;
+						path = parser.getAttributeValue(namespace, "pathPrefix");
+						if(TextUtils.isEmpty(path)){
+							pathType = PatternMatcher.PATTERN_SIMPLE_GLOB;
+							path = parser.getAttributeValue(namespace, "pathPattern");
+						}
+					}
+					String mimeType = parser.getAttributeValue(namespace, "mimeType");
+					if(host!=null){
+						rsinfo.filter.addDataAuthority(host, port);
+					}else if(path!=null){
+						rsinfo.filter.addDataPath(path, pathType);
+					}else if(scheme!=null){
+						rsinfo.filter.addDataScheme(scheme);
+					}else if(mimeType!=null){
+						try {
+							rsinfo.filter.addDataType(mimeType);
+						} catch (MalformedMimeTypeException e) {
+							e.printStackTrace();
+						}
+					}
 				}
 				break;
 			}
 			}
 			eventType = parser.next();
-		} while (!"receiver".equals(parser.getName()));
-		//
-		info.addReceiver(receiver);
+		} while (!tagName.equals(parser.getName()));
 	}
-
+	
 	private static String getName(String nameOrig, String pkgName) {
 		if (nameOrig == null) {
 			return null;

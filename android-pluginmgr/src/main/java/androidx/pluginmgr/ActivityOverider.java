@@ -188,8 +188,8 @@ public class ActivityOverider {
 		if (android.os.Build.VERSION.SDK_INT < 11) {
 			suffix = ".jar";
 		}
-		File savePath = new File(folder, activity + 
-				String.format("-%d%s", ActivityVersion.VERSION_CODE,suffix));
+		File savePath = new File(folder,  
+				String.format("%s-%d%s",activity, ActivityClassGenerator.VERSION_CODE,suffix));
 		return savePath;
 	}
 

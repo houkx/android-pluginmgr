@@ -21,15 +21,18 @@ import java.io.FileNotFoundException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import android.app.Activity;
 import android.app.Application;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.util.Log;
@@ -458,6 +461,7 @@ public class PluginManager implements FileFilter {
 					"attach", Context.class);
 			attachMethod.setAccessible(true);
 			attachMethod.invoke(application, ctxWrapper);
+			//
 			if (context instanceof Application) {
 				if (android.os.Build.VERSION.SDK_INT >= 14) {
 					Application.class.getMethod("registerComponentCallbacks",
@@ -465,7 +469,21 @@ public class PluginManager implements FileFilter {
 							.invoke(context, application);
 				}
 			}
-			
+			// register Receivers
+			List<ResolveInfo> receivers = plugin.getReceivers();
+			if(receivers!=null&&!receivers.isEmpty()){
+				for(ResolveInfo receiver:receivers){
+					String receiverClassName = receiver.activityInfo.name;
+					try {
+						Class<?> rclass = plugin.getClassLoader().loadClass(receiverClassName);
+						BroadcastReceiver receiverObj =  (BroadcastReceiver) rclass.newInstance();
+						application.registerReceiver(receiverObj, receiver.filter);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+                    //	TODO when uninstall plugin, should: application.unregisterReceiver(receiver);
+				}
+			}
 		}
 	}
 

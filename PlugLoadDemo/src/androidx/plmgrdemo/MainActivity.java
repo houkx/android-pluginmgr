@@ -35,13 +35,14 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		Log.d("plmgrdemo", "MainActivity onCreate()");
 		super.onCreate(savedInstanceState);
+		Thread.setDefaultUncaughtExceptionHandler(new ThreadLogger());
 		setContentView(R.layout.activity_main);
 
 		final EditText pluginDirTxt = (EditText) findViewById(R.id.pluginDirTxt);
 		Button pluginLoader = (Button) findViewById(R.id.pluginLoader);
 		pluglistView = (ListView) findViewById(R.id.pluglist);
 
-		plugMgr = PluginManager.getInstance(this);
+		plugMgr = PluginManager.getInstance(getApplicationContext());
 
 		String pluginSrcDir = sdcard + "/Download";
 		pluginDirTxt.setText(pluginSrcDir);
