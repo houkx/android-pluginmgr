@@ -30,329 +30,334 @@ import android.content.res.AssetManager;
 import android.content.res.Resources;
 
 /**
- * 插件Bean
+ * 一个插件的信息
  * 
  * @author HouKangxi
  * 
  */
 public class PlugInfo {
 
-	//
-	// ================== FLELDS ==================
-	private String id;
-	private String filePath;
-	private PackageInfo packageInfo;
-	private Map<String,ResolveInfo> activities;
-	private ResolveInfo mainActivity;
-	private List<ResolveInfo> services;
-	private List<ResolveInfo> receivers;
-	private List<ResolveInfo> providers;
-	//
-	private transient PluginClassLoader classLoader;
-	private transient Application application;
-	private transient AssetManager assetManager;
-	private transient Resources resources;
-	PluginContextWrapper appWrapper;
-	//
-	// private transient volatile String currentActivityClass;
+    private String id;
+    private String filePath;
+    private PackageInfo packageInfo;
+    private ResolveInfo mainActivity;
+    private Map<String, ResolveInfo> activities; // 插件的全部Activity
+    private List<ResolveInfo> services; // 插件的全部services
+    private List<ResolveInfo> receivers; // 插件的全部receivers
+    private List<ResolveInfo> providers; // 插件的全部providers
 
-	public String getPackageName() {
-		return packageInfo.packageName;
-	}
+    private transient PluginClassLoader classLoader;
+    private transient Application application;
+    private transient AssetManager assetManager;
+    private transient Resources resources;
+    /* package */PluginContextWrapper appWrapper;
 
-	// ================== FLAGS STARD ==================
-	/**
-	 * 按下back键时是否 finish Activity
-	 */
-	private static final int FLAG_FinishActivityOnbackPressed = 1;
-	/**
-	 * 是否调用父类的onBackPressed()方法
-	 */
-	private static final int FLAG_INVOKE_SUPER_ONBACKPRESSED = 2;
+    //
+    // private transient volatile String currentActivityClass;
 
-	// ================== FLAGS END ==================
-	/**
-	 * 按Back键时是否销毁Activity
-	 */
-	public boolean isFinishActivityOnbackPressed(ActivityInfo act) {
-		if (act == null) {
-			return false;
-		}
-		int flags = getFlags(act);
-		return containsFlag(flags, FLAG_FinishActivityOnbackPressed);
-	}
+    public String getPackageName() {
+        return packageInfo.packageName;
+    }
 
-	public boolean isInvokeSuperOnbackPressed(ActivityInfo act) {
-		if (act == null) {
-			return true;
-		}
-		int flags = getFlags(act);
-		if (flags == 0) {
-			return true;//默认true
-		}
-		return containsFlag(flags, FLAG_INVOKE_SUPER_ONBACKPRESSED);
-	}
+    // ================== FLAGS STARD ==================
+    /**
+     * 按下back键时是否 finish Activity
+     */
+    private static final int FLAG_FinishActivityOnbackPressed = 1;
+    /**
+     * 是否调用父类的onBackPressed()方法
+     */
+    private static final int FLAG_INVOKE_SUPER_ONBACKPRESSED = 2;
 
-	public void setInvokeSuperOnbackPressed(ActivityInfo act,
-			boolean invokeSuperOnbackPressed) {
-		if (act == null) {
-			return;
-		}
-		if (invokeSuperOnbackPressed) {
-			setFlag(act, FLAG_INVOKE_SUPER_ONBACKPRESSED);
-		} else {
-			unsetFlag(act, FLAG_INVOKE_SUPER_ONBACKPRESSED);
-		}
-	}
+    // ================== FLAGS END ==================
+    /**
+     * 按Back键时是否销毁Activity
+     */
+    public boolean isFinishActivityOnbackPressed(ActivityInfo act) {
+        if (act == null) {
+            return false;
+        }
+        int flags = getFlags(act);
+        return containsFlag(flags, FLAG_FinishActivityOnbackPressed);
+    }
 
-	public void setFinishActivityOnbackPressed(ActivityInfo act,
-			boolean finishOnbackPressed) {
-		if (act == null) {
-			return;
-		}
-		if (finishOnbackPressed) {
-			setFlag(act, FLAG_FinishActivityOnbackPressed);
-		} else {
-			unsetFlag(act, FLAG_FinishActivityOnbackPressed);
-		}
-	}
+    public boolean isInvokeSuperOnbackPressed(ActivityInfo act) {
+        if (act == null) {
+            return true;
+        }
+        int flags = getFlags(act);
+        if (flags == 0) {
+            return true;// 默认true
+        }
+        return containsFlag(flags, FLAG_INVOKE_SUPER_ONBACKPRESSED);
+    }
 
-	 ActivityInfo findActivityByClassNameFromPkg(String actName) {
-		if (packageInfo.activities == null) {
-			return null;
-		}
-		for (ActivityInfo act : packageInfo.activities) {
-           if(act.name.equals(actName)){
-        	   return act;
-           }
-		}
-		return null;
-	}
-	public ActivityInfo findActivityByClassName(String actName) {
-		if (packageInfo.activities == null) {
-			return null;
-		}
-		ResolveInfo act = activities.get(actName);
-		if (act == null) {
-			return null;
-		}
-		return act.activityInfo;
-	}
+    public void setInvokeSuperOnbackPressed(ActivityInfo act,
+            boolean invokeSuperOnbackPressed) {
+        if (act == null) {
+            return;
+        }
+        if (invokeSuperOnbackPressed) {
+            setFlag(act, FLAG_INVOKE_SUPER_ONBACKPRESSED);
+        } else {
+            unsetFlag(act, FLAG_INVOKE_SUPER_ONBACKPRESSED);
+        }
+    }
 
-	public ActivityInfo findActivityByAction(String action) {
-		if (activities == null || activities.isEmpty()) {
-			return null;
-		}
-		for (ResolveInfo act : activities.values()) {
-			if (act.filter != null && act.filter.hasAction(action)) {
-				return act.activityInfo;
-			}
-		}
-		return null;
-	}
+    public void setFinishActivityOnbackPressed(ActivityInfo act,
+            boolean finishOnbackPressed) {
+        if (act == null) {
+            return;
+        }
+        if (finishOnbackPressed) {
+            setFlag(act, FLAG_FinishActivityOnbackPressed);
+        } else {
+            unsetFlag(act, FLAG_FinishActivityOnbackPressed);
+        }
+    }
 
-	public ActivityInfo findReceiverByClassName(String className) {
-		if (packageInfo.receivers == null) {
-			return null;
-		}
-		for (ActivityInfo receiver : packageInfo.receivers) {
-			if (receiver.name.equals(className)) {
-				return receiver;
-			}
-		}
-		return null;
+    ActivityInfo findActivityByClassNameFromPkg(String actName) {
+        if (packageInfo.activities == null) {
+            return null;
+        }
+        for (ActivityInfo act : packageInfo.activities) {
+            if (act.name.equals(actName)) {
+                return act;
+            }
+        }
+        return null;
+    }
 
-	}
-	public ServiceInfo findServiceByClassName(String className) {
-		if (packageInfo.services == null) {
-			return null;
-		}
-		for (ServiceInfo service : packageInfo.services) {
-			if (service.name.equals(className)) {
-				return service;
-			}
-		}
-		return null;
-		
-	}
-	public ServiceInfo findServiceByAction(String action) {
-		if (services == null || services.isEmpty()) {
-			return null;
-		}
-		for (ResolveInfo ser : services) {
-			if (ser.filter != null && ser.filter.hasAction(action)) {
-				return ser.serviceInfo;
-			}
-		}
-		return null;
-	}
-	public void addActivity(ResolveInfo activity) {
-		if (activities == null) {
-			activities = new HashMap<String, ResolveInfo>(20);
-		}
-		activities.put(activity.activityInfo.name,activity);
-		if (mainActivity == null && activity.filter != null
-				&& activity.filter.hasAction("android.intent.action.MAIN")
-				&& activity.filter.hasCategory("android.intent.category.LAUNCHER")
-				) {
-			mainActivity = activity;
-		}
-	}
+    public ActivityInfo findActivityByClassName(String actName) {
+        if (packageInfo.activities == null) {
+            return null;
+        }
+        ResolveInfo act = activities.get(actName);
+        if (act == null) {
+            return null;
+        }
+        return act.activityInfo;
+    }
 
-	public void addReceiver(ResolveInfo receiver) {
-		if (receivers == null) {
-			receivers = new ArrayList<ResolveInfo>();
-		}
-		receivers.add(receiver);
-	}
-	
-	public void addService(ResolveInfo service) {
-		if (services == null) {
-			services = new ArrayList<ResolveInfo>();
-		}
-		services.add(service);
-	}
+    public ActivityInfo findActivityByAction(String action) {
+        if (activities == null || activities.isEmpty()) {
+            return null;
+        }
+        for (ResolveInfo act : activities.values()) {
+            if (act.filter != null && act.filter.hasAction(action)) {
+                return act.activityInfo;
+            }
+        }
+        return null;
+    }
 
-	public String getId() {
-		return id;
-	}
+    public ActivityInfo findReceiverByClassName(String className) {
+        if (packageInfo.receivers == null) {
+            return null;
+        }
+        for (ActivityInfo receiver : packageInfo.receivers) {
+            if (receiver.name.equals(className)) {
+                return receiver;
+            }
+        }
+        return null;
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    }
 
-	public String getFilePath() {
-		return filePath;
-	}
+    public ServiceInfo findServiceByClassName(String className) {
+        if (packageInfo.services == null) {
+            return null;
+        }
+        for (ServiceInfo service : packageInfo.services) {
+            if (service.name.equals(className)) {
+                return service;
+            }
+        }
+        return null;
 
-	public void setFilePath(String filePath) {
-		this.filePath = filePath;
-	}
+    }
 
-	public PackageInfo getPackageInfo() {
-		return packageInfo;
-	}
+    public ServiceInfo findServiceByAction(String action) {
+        if (services == null || services.isEmpty()) {
+            return null;
+        }
+        for (ResolveInfo ser : services) {
+            if (ser.filter != null && ser.filter.hasAction(action)) {
+                return ser.serviceInfo;
+            }
+        }
+        return null;
+    }
 
-	public void setPackageInfo(PackageInfo packageInfo) {
-		this.packageInfo = packageInfo;
-		activities = new HashMap<String, ResolveInfo>(packageInfo.activities.length);
-	}
+    public void addActivity(ResolveInfo activity) {
+        if (activities == null) {
+            activities = new HashMap<String, ResolveInfo>(20);
+        }
+        activities.put(activity.activityInfo.name, activity);
+        if (mainActivity == null
+                && activity.filter != null
+                && activity.filter.hasAction("android.intent.action.MAIN")
+                && activity.filter
+                        .hasCategory("android.intent.category.LAUNCHER")) {
+            mainActivity = activity;
+        }
+    }
 
-	public PluginClassLoader getClassLoader() {
-		return classLoader;
-	}
+    public void addReceiver(ResolveInfo receiver) {
+        if (receivers == null) {
+            receivers = new ArrayList<ResolveInfo>();
+        }
+        receivers.add(receiver);
+    }
 
-	public void setClassLoader(PluginClassLoader classLoader) {
-		this.classLoader = classLoader;
-	}
+    public void addService(ResolveInfo service) {
+        if (services == null) {
+            services = new ArrayList<ResolveInfo>();
+        }
+        services.add(service);
+    }
 
-	public Application getApplication() {
-		return application;
-	}
+    public String getId() {
+        return id;
+    }
 
-	public void setApplication(Application application) {
-		this.application = application;
-	}
+    public void setId(String id) {
+        this.id = id;
+    }
 
-	public AssetManager getAssetManager() {
-		return assetManager;
-	}
+    public String getFilePath() {
+        return filePath;
+    }
 
-	public void setAssetManager(AssetManager assetManager) {
-		this.assetManager = assetManager;
-	}
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
 
-	public Resources getResources() {
-		return resources;
-	}
+    public PackageInfo getPackageInfo() {
+        return packageInfo;
+    }
 
-	public void setResources(Resources resources) {
-		this.resources = resources;
-	}
+    public void setPackageInfo(PackageInfo packageInfo) {
+        this.packageInfo = packageInfo;
+        activities = new HashMap<String, ResolveInfo>(
+                packageInfo.activities.length);
+    }
 
-	// public String getCurrentActivityClass() {
-	// return currentActivityClass;
-	// }
-	//
-	// public void setCurrentActivityClass(String currentActivityClass) {
-	// this.currentActivityClass = currentActivityClass;
-	// }
+    public PluginClassLoader getClassLoader() {
+        return classLoader;
+    }
 
-	public Collection<ResolveInfo> getActivities() {
-		if (activities == null) {
-			return null;
-		}
-		return activities.values();
-	}
+    public void setClassLoader(PluginClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
 
-	public List<ResolveInfo> getServices() {
-		return services;
-	}
+    public Application getApplication() {
+        return application;
+    }
 
-	public void setServices(List<ResolveInfo> services) {
-		this.services = services;
-	}
+    public void setApplication(Application application) {
+        this.application = application;
+    }
 
-	public List<ResolveInfo> getProviders() {
-		return providers;
-	}
+    public AssetManager getAssetManager() {
+        return assetManager;
+    }
 
-	public void setProviders(List<ResolveInfo> providers) {
-		this.providers = providers;
-	}
+    public void setAssetManager(AssetManager assetManager) {
+        this.assetManager = assetManager;
+    }
 
-	public ResolveInfo getMainActivity() {
-		return mainActivity;
-	}
+    public Resources getResources() {
+        return resources;
+    }
 
-	public List<ResolveInfo> getReceivers() {
-		return receivers;
-	}
+    public void setResources(Resources resources) {
+        this.resources = resources;
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((id == null) ? 0 : id.hashCode());
-		return result;
-	}
+    // public String getCurrentActivityClass() {
+    // return currentActivityClass;
+    // }
+    //
+    // public void setCurrentActivityClass(String currentActivityClass) {
+    // this.currentActivityClass = currentActivityClass;
+    // }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		PlugInfo other = (PlugInfo) obj;
-		if (id == null) {
-			if (other.id != null)
-				return false;
-		} else if (!id.equals(other.id))
-			return false;
-		return true;
-	}
+    public Collection<ResolveInfo> getActivities() {
+        if (activities == null) {
+            return null;
+        }
+        return activities.values();
+    }
 
-	@Override
-	public String toString() {
-		return super.toString() + "[ id=" + id + ", pkg=" + getPackageName()
-				+ " ]";
-	}
+    public List<ResolveInfo> getServices() {
+        return services;
+    }
 
-	private static synchronized int getFlags(ActivityInfo act) {
-		return act.logo;
-	}
+    public void setServices(List<ResolveInfo> services) {
+        this.services = services;
+    }
 
-	private static synchronized void setFlag(ActivityInfo act, int flag) {
-		act.logo |= flag;
-	}
+    public List<ResolveInfo> getProviders() {
+        return providers;
+    }
 
-	private static synchronized void unsetFlag(ActivityInfo act, int flag) {
-		act.logo &= ~flag;
-	}
+    public void setProviders(List<ResolveInfo> providers) {
+        this.providers = providers;
+    }
 
-	private static boolean containsFlag(int vFlags, int flag) {
-		return (vFlags & flag) == flag;
-	}
+    public ResolveInfo getMainActivity() {
+        return mainActivity;
+    }
+
+    public List<ResolveInfo> getReceivers() {
+        return receivers;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((id == null) ? 0 : id.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        PlugInfo other = (PlugInfo) obj;
+        if (id == null) {
+            if (other.id != null)
+                return false;
+        } else if (!id.equals(other.id))
+            return false;
+        return true;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + "[ id=" + id + ", pkg=" + getPackageName()
+                + " ]";
+    }
+
+    private static synchronized int getFlags(ActivityInfo act) {
+        return act.logo;
+    }
+
+    private static synchronized void setFlag(ActivityInfo act, int flag) {
+        act.logo |= flag;
+    }
+
+    private static synchronized void unsetFlag(ActivityInfo act, int flag) {
+        act.logo &= ~flag;
+    }
+
+    private static boolean containsFlag(int vFlags, int flag) {
+        return (vFlags & flag) == flag;
+    }
 }

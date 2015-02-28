@@ -23,11 +23,11 @@ import android.util.Log;
  * @author HouKangxi
  *
  */
-class FrameworkClassLoader extends ClassLoader {
+class CJClassLoader extends ClassLoader {
 	private String plugId;
 	private String actName;
 
-	public FrameworkClassLoader(ClassLoader parent) {
+	public CJClassLoader(ClassLoader parent) {
 		super(parent);
 	}
 
