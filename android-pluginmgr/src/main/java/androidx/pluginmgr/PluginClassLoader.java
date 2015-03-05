@@ -45,7 +45,6 @@ class PluginClassLoader extends DexClassLoader {
 		this.libraryPath = plugin.getPackageInfo().applicationInfo.nativeLibraryDir;
 		this.optimizedDirectory = optimizedDir;
 		tag = "PluginClassLoader( " + plugin.getPackageInfo().packageName + " )";
-		Log.i(tag, "libraryPath = "+libraryPath);
 	}
 
 	Class<?> loadActivityClass(final String actClassName) throws ClassNotFoundException {
@@ -61,52 +60,4 @@ class PluginClassLoader extends DexClassLoader {
 		return actLoader.loadClass(ActivityOverider.targetClassName);
 	}
 	
-	protected Object getClassLoadingLock(String name){
-		return name.hashCode();
-	}
-	
-    private  Class<?>  findByParent(String name,boolean throwEx)throws ClassNotFoundException{
-    	Class<?> c =null;
-    	try {
-			ClassLoader parent = getParent();
-			if (parent != null) {
-				c = parent.loadClass(name);
-			}
-		} catch (ClassNotFoundException e) {
-			if(throwEx){
-				throw e;
-			}
-		}
-    	return c;
-    }
-	protected Class<?> loadClass(String name, boolean resolve)
-			throws ClassNotFoundException {
-		Log.d(tag, "loadClass: " + name);
-		synchronized (getClassLoadingLock(name)) {
-			// First, check if the class has already been loaded
-			Class<?> c = findLoadedClass(name);
-			if (c == null) {
-				if(name.startsWith("android.support.")){
-					try {
-						c = findClass(name);
-					} catch (ClassNotFoundException e) {
-					}
-					if (c == null) {
-						c = findByParent(name, true);
-					}
-				}else{
-					c = findByParent(name, false);
-					if (c == null) {
-						c = findClass(name);
-					}
-				}
-			}else{
-				Log.d(tag, "hasLoadedClass: "+name);
-			}
-			if (resolve) {
-				resolveClass(c);
-			}
-			return c;
-		}
-	}
 }
