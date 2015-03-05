@@ -70,12 +70,7 @@ class PluginClassLoader extends DexClassLoader {
     	try {
 			ClassLoader parent = getParent();
 			if (parent != null) {
-				if (parent.getClass() == FrameworkClassLoader.class) {
-					parent = parent.getParent();
-				}
-				if (parent != null) {
-					c = parent.loadClass(name);
-				}
+				c = parent.loadClass(name);
 			}
 		} catch (ClassNotFoundException e) {
 			if(throwEx){

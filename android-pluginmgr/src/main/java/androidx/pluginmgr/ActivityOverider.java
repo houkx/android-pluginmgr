@@ -27,7 +27,6 @@ import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
-import android.view.Window;
 
 /**
  * 提供公共方法供自动生成的Activity调用
@@ -41,6 +40,8 @@ public class ActivityOverider {
 	 * 自动生成的 Activity 的全类名
 	 */
 	static final String targetClassName = "androidx.pluginmgr.PluginActivity";
+	static final String PLUGIN_ID = "_pluginId";
+	static final String PLUGIN_ACTIVITY = "_targetAct";
     // ------------------- process service  ---------
 	/**
 	 * 覆盖 StarService 方法
@@ -162,10 +163,10 @@ public class ActivityOverider {
 		PluginManager mgr = PluginManager.getInstance();
 		String pluginId = plugin.getId();
 		createProxyDex(plugin, actName);
-		String act = mgr.getFrameworkClassLoader().newActivityClassName(
-				pluginId, actName);
-		ComponentName compname = new ComponentName(mgr.getContext(), act);
-		intent.setComponent(compname);
+		ComponentName compname = new ComponentName(mgr.getContext(), targetClassName);
+		intent.setComponent(compname)
+		 .putExtra(ActivityOverider.PLUGIN_ID, pluginId)
+		 .putExtra(ActivityOverider.PLUGIN_ACTIVITY, actName);
 	}
 	static File getPluginBaseDir(String pluginId) {
 		String pluginPath = PluginManager.getInstance()
@@ -234,6 +235,14 @@ public class ActivityOverider {
 			} catch (Exception e) {
 				Log.e(tag, Log.getStackTraceString(e));
 			}
+		}
+		try {
+			Object loadedApk = ReflectionUtils.getFieldValue(base,"mPackageInfo");
+			Log.d(tag, "loadedApk = "+loadedApk);
+			ReflectionUtils.setFieldValue(loadedApk, "mClassLoader",
+					plugin.getClassLoader());
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		PluginActivityWrapper actWrapper = new PluginActivityWrapper(base, plugin.appWrapper, plugin);
 		return new Object[] { actWrapper, plugin.getAssetManager() };
@@ -357,18 +366,18 @@ public class ActivityOverider {
 		}
 		// 如果是三星Galaxy S4 手机，则使用包装的LayoutInflater替换原LayoutInflater
 		// 这款手机在解析内置的布局文件时有各种错误
-		if (android.os.Build.MODEL.equals("GT-I9500")) {
-			Window window = fromAct.getWindow();// 得到 PhoneWindow 实例
-			try {
-				Object origInf = ReflectionUtils.getFieldValue(window, "mLayoutInflater");
-				if(!(origInf instanceof LayoutInflaterWrapper)){
-					ReflectionUtils.setFieldValue(window, "mLayoutInflater",
-							new LayoutInflaterWrapper(window.getLayoutInflater()));
-				}
-			} catch (Exception e) {
-				Log.e(tag, Log.getStackTraceString(e));
-			}
-		}
+//		if (android.os.Build.MODEL.equals("GT-I9500")) {
+//			Window window = fromAct.getWindow();// 得到 PhoneWindow 实例
+//			try {
+//				Object origInf = ReflectionUtils.getFieldValue(window, "mLayoutInflater");
+//				if(!(origInf instanceof LayoutInflaterWrapper)){
+//					ReflectionUtils.setFieldValue(window, "mLayoutInflater",
+//							new LayoutInflaterWrapper(window.getLayoutInflater()));
+//				}
+//			} catch (Exception e) {
+//				Log.e(tag, Log.getStackTraceString(e));
+//			}
+//		}
 		// invoke callback
 		PluginActivityLifeCycleCallback callback = con
 				.getPluginActivityLifeCycleCallback();

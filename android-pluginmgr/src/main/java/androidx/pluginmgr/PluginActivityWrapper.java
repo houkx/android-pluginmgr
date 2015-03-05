@@ -22,7 +22,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
-import android.content.res.Resources.Theme;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
 

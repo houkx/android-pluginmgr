@@ -18,6 +18,8 @@ package androidx.pluginmgr;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
+import java.lang.ref.SoftReference;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,10 +29,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import android.app.Activity;
 import android.app.Application;
+import android.app.Instrumentation;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
@@ -53,24 +57,24 @@ public class PluginManager implements FileFilter {
 	private String dexOutputPath;
 	private volatile boolean hasInit = false;
 	private File dexInternalStoragePath;
-	private FrameworkClassLoader frameworkClassLoader;
 	private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
-	private volatile Activity actFrom;
+	private volatile SoftReference<Activity> actFrom; 
 	
 	private PluginManager() {
+		Log.d(tag, "static instance="+this);
 	}
 
 	
 	public static PluginManager getInstance(Context context) {
 		if (instance.hasInit || context == null) {
-			if (instance.actFrom == null && context instanceof Activity) {
-				instance.actFrom = (Activity) context;
+			if ((instance.actFrom == null||instance.actFrom.get()==null) && context instanceof Activity) {
+				instance.actFrom = new SoftReference<Activity>((Activity)context); 
 			}
 			return instance;
 		}
 		Context ctx = context;
 		if (context instanceof Activity) {
-			instance.actFrom = (Activity) context;
+			instance.actFrom = new SoftReference<Activity>((Activity)context); 
 			ctx = ((Activity) context).getApplication();
 		} else if (context instanceof Service) {
 			ctx = ((Service) context).getApplication();
@@ -92,10 +96,6 @@ public class PluginManager implements FileFilter {
 	public boolean startMainActivity(Context context, String pkgOrId) {
 		Log.d(tag, "startMainActivity by:" + pkgOrId);
 		PlugInfo plug = preparePlugForStartActivity(context, pkgOrId);
-		if (frameworkClassLoader == null) {
-			Log.e(tag, "startMainActivity: frameworkClassLoader == null!");
-			return false;
-		}
 		if (plug.getMainActivity() == null) {
 			Log.e(tag, "startMainActivity: plug.getMainActivity() == null!");
 			return false;
@@ -105,10 +105,9 @@ public class PluginManager implements FileFilter {
 					"startMainActivity: plug.getMainActivity().activityInfo == null!");
 			return false;
 		}
-		String className = frameworkClassLoader.newActivityClassName(
-				plug.getId(), plug.getMainActivity().activityInfo.name);
 		context.startActivity(new Intent().setComponent(new ComponentName(
-				context, className)));
+				context, ActivityOverider.targetClassName)).putExtra(ActivityOverider.PLUGIN_ID, pkgOrId)
+				.putExtra(ActivityOverider.PLUGIN_ACTIVITY, plug.getMainActivity().activityInfo.name));
 		return true;
 	}
 
@@ -151,14 +150,35 @@ public class PluginManager implements FileFilter {
 					"plug intent must set the ComponentName!");
 		}
 		PlugInfo plug = preparePlugForStartActivity(context, plugIdOrPkg);
-		String className = frameworkClassLoader.newActivityClassName(
-				plug.getId(), actName);
 		Log.i(tag, "performStartActivity: " + actName);
-		ComponentName comp = new ComponentName(context, className);
+		intent.putExtra(ActivityOverider.PLUGIN_ID, plug.getId());
+		intent.putExtra(ActivityOverider.PLUGIN_ACTIVITY, actName);
+		ComponentName comp = new ComponentName(context, ActivityOverider.targetClassName);
 		intent.setAction(null);
 		intent.setComponent(comp);
 	}
 
+	private static class FrameworkInstrumentation extends Instrumentation {
+		@Override
+		public Activity newActivity(ClassLoader cl, String className,
+				Intent intent) throws InstantiationException,
+				IllegalAccessException, ClassNotFoundException {
+			if(className.equals(ActivityOverider.targetClassName)){
+				String pluginId = intent.getStringExtra(ActivityOverider.PLUGIN_ID);
+				String actClassName = intent.getStringExtra(ActivityOverider.PLUGIN_ACTIVITY);
+				PlugInfo plugin = instance.getPluginById(pluginId);
+				if (plugin == null) {
+					plugin = instance.getPluginByPackageName(pluginId);
+				}
+				Log.d(tag, "Instrumentation.newActivity():pluginId="+pluginId
+						+", actClassName="+actClassName+", plugin = "+plugin);
+				if (plugin != null) {
+					return (Activity) plugin.getClassLoader().loadActivityClass(actClassName).newInstance();
+				}
+			}
+			return super.newActivity(cl, className, intent);
+		}
+	}
 
 	private void init(Context ctx) {
 		Log.i(tag, "init()...");
@@ -171,16 +191,29 @@ public class PluginManager implements FileFilter {
 		dexInternalStoragePath = context
 				.getDir("plugins", Context.MODE_PRIVATE);
 		dexInternalStoragePath.mkdirs();
-		// change ClassLoader
+//		// change ClassLoader
+//		try {
+//			Object mPackageInfo = ReflectionUtils.getFieldValue(ctx,
+//					"mBase.mPackageInfo", true);
+//			frameworkClassLoader = new FrameworkClassLoader(
+//					ctx.getClassLoader());
+//			// set Application's classLoader to FrameworkClassLoader
+//			ReflectionUtils.setFieldValue(mPackageInfo, "mClassLoader",
+//					frameworkClassLoader, true);
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+		// replace Instrumentation
 		try {
-			Object mPackageInfo = ReflectionUtils.getFieldValue(ctx,
-					"mBase.mPackageInfo", true);
-			frameworkClassLoader = new FrameworkClassLoader(
-					ctx.getClassLoader());
-			// set Application's classLoader to FrameworkClassLoader
-			ReflectionUtils.setFieldValue(mPackageInfo, "mClassLoader",
-					frameworkClassLoader, true);
-		} catch (Exception e) {
+			Context contextImpl = ((ContextWrapper)context).getBaseContext();
+			Object activityThread = ReflectionUtils.getFieldValue(contextImpl,
+					"mMainThread");
+			Field instrumentationF = activityThread.getClass().getDeclaredField(
+					"mInstrumentation");
+			instrumentationF.setAccessible(true);
+			FrameworkInstrumentation instrumentation = new FrameworkInstrumentation();
+			instrumentationF.set(activityThread, instrumentation);
+		}  catch (Exception e) {
 			e.printStackTrace();
 		}
 		hasInit = true;
@@ -361,7 +394,7 @@ public class PluginManager implements FileFilter {
 		PluginManifestUtil.setManifestInfo(context, dexPath, info);
 
 		PluginClassLoader loader = new PluginClassLoader(dexPath,
-				dexOutputPath, frameworkClassLoader, info);
+				dexOutputPath, context.getClassLoader(), info);
 		info.setClassLoader(loader);
 
 		try {
@@ -376,8 +409,8 @@ public class PluginManager implements FileFilter {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		if (actFrom != null) {
-			initPluginApplication(info, actFrom, true);
+		if (actFrom != null && actFrom.get()!= null) {
+			initPluginApplication(info, actFrom.get(), true);
 		}
 		// createPluginActivityProxyDexes(info);
 		Log.i(tag, "buildPlugInfo: " + info);
@@ -510,10 +543,6 @@ public class PluginManager implements FileFilter {
 	public void setPluginActivityLifeCycleCallback(
 			PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback) {
 		this.pluginActivityLifeCycleCallback = pluginActivityLifeCycleCallback;
-	}
-
-	FrameworkClassLoader getFrameworkClassLoader() {
-		return frameworkClassLoader;
 	}
 
 	@Override

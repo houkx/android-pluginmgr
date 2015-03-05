@@ -1065,7 +1065,6 @@ final class NamespaceStack {
 		m_depth = 0;
 	}
 
-	@SuppressWarnings("unused")
 	public final int getTotalCount() {
 		return m_count;
 	}
@@ -1110,7 +1109,6 @@ final class NamespaceStack {
 		m_count += 1;
 	}
 
-	@SuppressWarnings("unused")
 	public final boolean pop(int prefix, int uri) {
 		if (m_dataLength == 0) {
 			return false;
@@ -1170,7 +1168,6 @@ final class NamespaceStack {
 		return find(uri, false);
 	}
 
-	@SuppressWarnings("unused")
 	public final int findUri(int prefix) {
 		return find(prefix, true);
 	}
