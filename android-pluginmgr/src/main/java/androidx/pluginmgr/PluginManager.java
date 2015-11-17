@@ -316,9 +316,10 @@ public class PluginManager implements FileFilter {
 		try{
 		Field mBase = ContextWrapper.class.getDeclaredField("mBase");
 		mBase.setAccessible(true);
-		mBase.set(app, new PluginContext(app.getBaseContext(), info));
+		mBase.set(app, new PluginContext(context.getApplicationContext(), info));
+		app.onCreate();
 		}catch(Throwable e){
-			
+			e.printStackTrace();
 		}
 	}
 
