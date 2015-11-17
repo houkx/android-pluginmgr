@@ -81,6 +81,9 @@ public class PluginManifestUtil {
 	private static boolean extractLibFile(ZipFile zip, File tardir)
 			throws IOException {
 		
+				if(!tardir.exists()){
+					tardir.mkdirs();
+				}
 		
 		String defaultArch = "armeabi";
         Map<String,List<ZipEntry>> archLibEntries = new HashMap<String, List<ZipEntry>>();

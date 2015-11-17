@@ -42,6 +42,11 @@ import androidx.pluginmgr.utils.FileUtil;
 import androidx.pluginmgr.utils.PluginManifestUtil;
 import androidx.pluginmgr.verify.PluginNotFoundException;
 import androidx.pluginmgr.verify.PluginOverdueVerifier;
+import android.content.pm.ApplicationInfo;
+import android.app.*;
+import java.lang.reflect.Field;
+import android.content.*;
+import androidx.pluginmgr.environment.PluginContext;
 
 /**
  * 插件管理器
@@ -110,7 +115,8 @@ public class PluginManager implements FileFilter {
         }
         DelegateActivityThread delegateActivityThread = DelegateActivityThread.getSingleton();
         Instrumentation originInstrumentation = delegateActivityThread.getInstrumentation();
-        delegateActivityThread.setInstrumentation(new PluginInstrumentation(originInstrumentation));
+		pluginInstrumentation = new PluginInstrumentation(originInstrumentation);
+        delegateActivityThread.setInstrumentation(pluginInstrumentation);
     }
 
 
@@ -239,7 +245,7 @@ public class PluginManager implements FileFilter {
             pluginPkgToInfoMap.clear();
         }
         File[] pluginApkFiles = pluginSrcDirFile.listFiles(this);
-        if (pluginApkFiles == null || pluginApkFiles.length < 1) {
+        if (pluginApkFiles == null || pluginApkFiles.length == 0) {
             throw new FileNotFoundException("could not find plugins in:"
                     + pluginSrcDirFile);
         }
@@ -290,10 +296,39 @@ public class PluginManager implements FileFilter {
         PluginClassLoader pluginClassLoader = new PluginClassLoader(info, dexPath, dexOutputPath
                 , getPluginLibPath(info).getAbsolutePath(), ClassLoader.getSystemClassLoader().getParent());
         info.setClassLoader(pluginClassLoader);
-
+		ApplicationInfo appInfo = info.getPackageInfo().applicationInfo;
+		String appClassName = null;
+		if(appInfo != null){
+			appClassName = appInfo.name;
+		}
+		Application app = makeApplication(pluginClassLoader,appClassName);
+		attachBaseContext(info,app);
+		info.setApplication(app);
         Log.i(TAG, "buildPlugInfo: " + info);
         return info;
     }
+
+	private void attachBaseContext(PlugInfo info, Application app)
+	{
+		try{
+		Field mBase = ContextWrapper.class.getDeclaredField("mBase");
+		mBase.setAccessible(true);
+		mBase.set(app, new PluginContext(app.getBaseContext(), info));
+		}catch(Throwable e){
+			
+		}
+	}
+
+	private Application makeApplication(PluginClassLoader pluginClassLoader, String appClassName)
+	{
+		if(appClassName != null) {
+			try{
+				return (Application) pluginClassLoader.loadClass(appClassName).newInstance();
+			}catch(Throwable ignored){}
+		}
+		
+		return new Application();
+	}
 
 
     /**

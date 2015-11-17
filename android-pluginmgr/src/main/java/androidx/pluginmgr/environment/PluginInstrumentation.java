@@ -75,6 +75,8 @@ public class PluginInstrumentation extends DelegateInstrumentation {
                 field.setAccessible(true);
                 field.set(activity, pluginContext);
 				
+				Reflect.on(activity).set("mApplication", currentPlugin.getApplication());
+				
             } catch (Throwable e) {
                 e.printStackTrace();
             }
