@@ -16,7 +16,7 @@ public class Globals {
     public static final String PRIVATE_PLUGIN_OUTPUT_DIR_NAME = "plugins-file";
 
     /**
-     * 私有目录中保存插件文件的文件夹名
+     * 私有目录中保存插件odex的文件夹名
      */
     public static final String PRIVATE_PLUGIN_ODEX_OUTPUT_DIR_NAME = "plugins-opt";
 

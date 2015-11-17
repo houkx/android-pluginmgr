@@ -47,6 +47,7 @@ import android.app.*;
 import java.lang.reflect.Field;
 import android.content.*;
 import androidx.pluginmgr.environment.PluginContext;
+import androidx.pluginmgr.verify.SimpleLengthVerifier;
 
 /**
  * 插件管理器
@@ -87,9 +88,9 @@ public class PluginManager implements FileFilter {
     private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
 
     /**
-     * 插件过期验证器
+     * 插件过期验证器 (默认只对比文件长度)
      */
-    private PluginOverdueVerifier pluginOverdueVerifier;
+    private PluginOverdueVerifier pluginOverdueVerifier = new SimpleLengthVerifier();
 
     private PluginInstrumentation pluginInstrumentation;
 
