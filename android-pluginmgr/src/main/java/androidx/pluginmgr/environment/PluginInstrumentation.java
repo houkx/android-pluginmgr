@@ -16,6 +16,7 @@ import androidx.pluginmgr.Globals;
 import androidx.pluginmgr.PluginManager;
 import androidx.pluginmgr.delegate.DelegateInstrumentation;
 import androidx.pluginmgr.verify.PluginNotFoundException;
+import androidx.pluginmgr.reflect.Reflect;
 
 /**
  * @author Lody
@@ -65,9 +66,15 @@ public class PluginInstrumentation extends DelegateInstrumentation {
             Context baseContext = activity.getBaseContext();
             PluginContext pluginContext = new PluginContext(baseContext, currentPlugin);
             try {
+				try{
+				//在许多设备上，Activity自身hold资源
+				Reflect.on(activity).set("mResources",pluginContext.getResources());
+				}catch(Throwable ignored){}
+				
                 Field field = ContextWrapper.class.getDeclaredField("mBase");
                 field.setAccessible(true);
                 field.set(activity, pluginContext);
+				
             } catch (Throwable e) {
                 e.printStackTrace();
             }
