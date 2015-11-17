@@ -13,7 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package androidx.pluginmgr;
+package androidx.pluginmgr.utils;
+
+import android.util.TypedValue;
+
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.EOFException;
 import java.io.File;
@@ -23,14 +28,12 @@ import java.io.Reader;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-
-import android.util.TypedValue;
-
 /**
  * 
  * Read xml document from Android's binary xml file.
+ * 之所以不用反射直接调用而将它抠出来是因为这样能够保证稳定性.
+ *
+ *
  */
 class XmlManifestReader {
 	public static final String DEFAULT_XML = "AndroidManifest.xml";

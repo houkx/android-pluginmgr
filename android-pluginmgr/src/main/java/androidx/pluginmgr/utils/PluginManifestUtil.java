@@ -13,7 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package androidx.pluginmgr;
+package androidx.pluginmgr.utils;
+
+import android.content.Context;
+import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.os.Build;
+
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,26 +36,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-import org.xmlpull.v1.XmlPullParserFactory;
-
-import android.content.Context;
-import android.content.IntentFilter;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
+import androidx.pluginmgr.PluginManager;
+import androidx.pluginmgr.environment.PlugInfo;
 
 /**
  * @author HouKangxi
  * 
  */
-class PluginManifestUtil {
-	static void setManifestInfo(Context context, String apkPath, PlugInfo info)
+public class PluginManifestUtil {
+	public static void setManifestInfo(Context context, String apkPath, PlugInfo info)
 			throws XmlPullParserException, IOException {
 		
 		ZipFile zipFile = new ZipFile(new File(apkPath), ZipFile.OPEN_READ);
@@ -59,16 +62,16 @@ class PluginManifestUtil {
 								| PackageManager.GET_PROVIDERS//
 								| PackageManager.GET_META_DATA//
 								| PackageManager.GET_SHARED_LIBRARY_FILES//
-				// | PackageManager.GET_SERVICES//
+								| PackageManager.GET_SERVICES//
 				// | PackageManager.GET_SIGNATURES//
 				);
-		// Log.d("ManifestReader: setManifestInfo", "GET_SHARED_LIBRARY_FILES="
-		// + pkgInfo.applicationInfo.nativeLibraryDir);
 		info.setPackageInfo(pkgInfo);
-		File libdir = ActivityOverider.getPluginLibDir(info.getId());
+		File libDir = PluginManager.getSingleton().getPluginLibPath(info);
 		try {
-			if(extractLibFile(zipFile, libdir)){
-				pkgInfo.applicationInfo.nativeLibraryDir=libdir.getAbsolutePath();
+			if (extractLibFile(zipFile, libDir)) {
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
+					pkgInfo.applicationInfo.nativeLibraryDir = libDir.getAbsolutePath();
+				}
 			}
 		} finally {
 			zipFile.close();
@@ -76,7 +79,7 @@ class PluginManifestUtil {
 		setAttrs(info, manifestXML);
 	}
 	private static boolean extractLibFile(ZipFile zip, File tardir)
-			throws ZipException, IOException {
+			throws IOException {
 		
 		
 		String defaultArch = "armeabi";
@@ -286,7 +289,7 @@ class PluginManifestUtil {
 		if (nameOrig == null) {
 			return null;
 		}
-		StringBuilder sb = null;
+		StringBuilder sb;
 		if (nameOrig.startsWith(".")) {
 			sb = new StringBuilder();
 			sb.append(pkgName);

@@ -13,13 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package androidx.pluginmgr;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+package androidx.pluginmgr.environment;
 
 import android.app.Application;
 import android.content.pm.ActivityInfo;
@@ -29,17 +23,24 @@ import android.content.pm.ServiceInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * 插件Bean
  * 
  * @author HouKangxi
+ * @author Lody
  * 
  */
-public class PlugInfo {
+public class PlugInfo implements Serializable {
 
-	//
-	// ================== FLELDS ==================
-	private String id;
+    // ================== FIELDS ==================
+    private String id;
 	private String filePath;
 	private PackageInfo packageInfo;
 	private Map<String,ResolveInfo> activities;
@@ -47,78 +48,19 @@ public class PlugInfo {
 	private List<ResolveInfo> services;
 	private List<ResolveInfo> receivers;
 	private List<ResolveInfo> providers;
-	//
-	private transient PluginClassLoader classLoader;
-	private transient Application application;
+
+    private transient ClassLoader classLoader;
+    private transient Application application;
 	private transient AssetManager assetManager;
 	private transient Resources resources;
-	PluginContextWrapper appWrapper;
-	//
-	// private transient volatile String currentActivityClass;
 
 	public String getPackageName() {
 		return packageInfo.packageName;
 	}
 
-	// ================== FLAGS STARD ==================
-	/**
-	 * 按下back键时是否 finish Activity
-	 */
-	private static final int FLAG_FinishActivityOnbackPressed = 1;
-	/**
-	 * 是否调用父类的onBackPressed()方法
-	 */
-	private static final int FLAG_INVOKE_SUPER_ONBACKPRESSED = 2;
 
-	// ================== FLAGS END ==================
-	/**
-	 * 按Back键时是否销毁Activity
-	 */
-	public boolean isFinishActivityOnbackPressed(ActivityInfo act) {
-		if (act == null) {
-			return false;
-		}
-		int flags = getFlags(act);
-		return containsFlag(flags, FLAG_FinishActivityOnbackPressed);
-	}
-
-	public boolean isInvokeSuperOnbackPressed(ActivityInfo act) {
-		if (act == null) {
-			return true;
-		}
-		int flags = getFlags(act);
-		if (flags == 0) {
-			return true;//默认true
-		}
-		return containsFlag(flags, FLAG_INVOKE_SUPER_ONBACKPRESSED);
-	}
-
-	public void setInvokeSuperOnbackPressed(ActivityInfo act,
-			boolean invokeSuperOnbackPressed) {
-		if (act == null) {
-			return;
-		}
-		if (invokeSuperOnbackPressed) {
-			setFlag(act, FLAG_INVOKE_SUPER_ONBACKPRESSED);
-		} else {
-			unsetFlag(act, FLAG_INVOKE_SUPER_ONBACKPRESSED);
-		}
-	}
-
-	public void setFinishActivityOnbackPressed(ActivityInfo act,
-			boolean finishOnbackPressed) {
-		if (act == null) {
-			return;
-		}
-		if (finishOnbackPressed) {
-			setFlag(act, FLAG_FinishActivityOnbackPressed);
-		} else {
-			unsetFlag(act, FLAG_FinishActivityOnbackPressed);
-		}
-	}
-
-	 ActivityInfo findActivityByClassNameFromPkg(String actName) {
-		if (packageInfo.activities == null) {
+    public ActivityInfo findActivityByClassNameFromPkg(String actName) {
+        if (packageInfo.activities == null) {
 			return null;
 		}
 		for (ActivityInfo act : packageInfo.activities) {
@@ -188,9 +130,10 @@ public class PlugInfo {
 	}
 	public void addActivity(ResolveInfo activity) {
 		if (activities == null) {
-			activities = new HashMap<String, ResolveInfo>(20);
-		}
-		activities.put(activity.activityInfo.name,activity);
+            activities = new HashMap<String, ResolveInfo>(15);
+        }
+        fixActivityInfo(activity.activityInfo);
+        activities.put(activity.activityInfo.name,activity);
 		if (mainActivity == null && activity.filter != null
 				&& activity.filter.hasAction("android.intent.action.MAIN")
 				&& activity.filter.hasCategory("android.intent.category.LAUNCHER")
@@ -199,8 +142,16 @@ public class PlugInfo {
 		}
 	}
 
-	public void addReceiver(ResolveInfo receiver) {
-		if (receivers == null) {
+    private void fixActivityInfo(ActivityInfo activityInfo) {
+        if (activityInfo != null) {
+            if (activityInfo.name.startsWith(".")) {
+                activityInfo.name = getPackageName() + activityInfo.name;
+            }
+        }
+    }
+
+    public void addReceiver(ResolveInfo receiver) {
+        if (receivers == null) {
 			receivers = new ArrayList<ResolveInfo>();
 		}
 		receivers.add(receiver);
@@ -238,14 +189,6 @@ public class PlugInfo {
 		activities = new HashMap<String, ResolveInfo>(packageInfo.activities.length);
 	}
 
-	public PluginClassLoader getClassLoader() {
-		return classLoader;
-	}
-
-	public void setClassLoader(PluginClassLoader classLoader) {
-		this.classLoader = classLoader;
-	}
-
 	public Application getApplication() {
 		return application;
 	}
@@ -254,8 +197,8 @@ public class PlugInfo {
 		this.application = application;
 	}
 
-	public AssetManager getAssetManager() {
-		return assetManager;
+    public AssetManager getAssets() {
+        return assetManager;
 	}
 
 	public void setAssetManager(AssetManager assetManager) {
@@ -270,13 +213,6 @@ public class PlugInfo {
 		this.resources = resources;
 	}
 
-	// public String getCurrentActivityClass() {
-	// return currentActivityClass;
-	// }
-	//
-	// public void setCurrentActivityClass(String currentActivityClass) {
-	// this.currentActivityClass = currentActivityClass;
-	// }
 
 	public Collection<ResolveInfo> getActivities() {
 		if (activities == null) {
@@ -309,8 +245,31 @@ public class PlugInfo {
 		return receivers;
 	}
 
-	@Override
-	public int hashCode() {
+    public ClassLoader getClassLoader() {
+        return classLoader;
+    }
+
+    public void setClassLoader(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
+
+    /**
+     * 根据类名查询插件ActivityInfo信息
+     *
+     * @param activityName 插件activity类名
+     * @return 插件ActivityInfo信息或NULL
+     */
+    public ActivityInfo queryActivityInfoByName(String activityName) {
+        for (ResolveInfo resolveInfo : activities.values()) {
+            if (resolveInfo.activityInfo.name.equals(activityName)) {
+                return resolveInfo.activityInfo;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public int hashCode() {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((id == null) ? 0 : id.hashCode());
@@ -338,21 +297,5 @@ public class PlugInfo {
 	public String toString() {
 		return super.toString() + "[ id=" + id + ", pkg=" + getPackageName()
 				+ " ]";
-	}
-
-	private static synchronized int getFlags(ActivityInfo act) {
-		return act.logo;
-	}
-
-	private static synchronized void setFlag(ActivityInfo act, int flag) {
-		act.logo |= flag;
-	}
-
-	private static synchronized void unsetFlag(ActivityInfo act, int flag) {
-		act.logo &= ~flag;
-	}
-
-	private static boolean containsFlag(int vFlags, int flag) {
-		return (vFlags & flag) == flag;
 	}
 }

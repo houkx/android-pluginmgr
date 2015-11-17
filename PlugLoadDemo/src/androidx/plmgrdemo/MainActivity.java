@@ -1,8 +1,5 @@
 package androidx.plmgrdemo;
 
-import java.io.File;
-import java.util.Collection;
-
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -17,13 +14,15 @@ import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
-import androidx.pluginmgr.PlugInfo;
+
+import java.io.File;
+import java.util.Collection;
+
 import androidx.pluginmgr.PluginManager;
+import androidx.pluginmgr.environment.PlugInfo;
 
 public class MainActivity extends Activity {
-	// private EditText pluginDirTxt;
-	// private Button pluginLoader;
-	private ListView pluglistView;
+	private ListView plugListView;
 	//
 	private PluginManager plugMgr;
 
@@ -37,17 +36,17 @@ public class MainActivity extends Activity {
 
 		final EditText pluginDirTxt = (EditText) findViewById(R.id.pluginDirTxt);
 		Button pluginLoader = (Button) findViewById(R.id.pluginLoader);
-		pluglistView = (ListView) findViewById(R.id.pluglist);
+		plugListView = (ListView) findViewById(R.id.pluglist);
 
-		plugMgr = PluginManager.getInstance(this);
+		plugMgr = PluginManager.getSingleton();
 
-		String pluginSrcDir = sdcard + "/Download";
+		String pluginSrcDir = sdcard;
 		pluginDirTxt.setText(pluginSrcDir);
 
-		pluglistView.setOnItemClickListener(new OnItemClickListener() {
+		plugListView.setOnItemClickListener(new OnItemClickListener() {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
-					int position, long id) {
+									int position, long id) {
 				plugItemClick(position);
 			}
 		});
@@ -94,8 +93,8 @@ public class MainActivity extends Activity {
 	}
 
 	private void plugItemClick(int position) {
-		PlugInfo plug = (PlugInfo) pluglistView.getItemAtPosition(position);
-		plugMgr.startMainActivity(this, plug.getPackageName());
+		PlugInfo plug = (PlugInfo) plugListView.getItemAtPosition(position);
+		plugMgr.startMainActivity(this, plug);
 	}
 
 	private void setPlugins(final Collection<PlugInfo> plugs) {
@@ -105,7 +104,7 @@ public class MainActivity extends Activity {
 		final ListAdapter adapter = new PlugListViewAdapter(this, plugs);
 		runOnUiThread(new Runnable() {
 			public void run() {
-				pluglistView.setAdapter(adapter);
+				plugListView.setAdapter(adapter);
 			}
 		});
 	}

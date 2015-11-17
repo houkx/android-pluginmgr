@@ -15,496 +15,391 @@
  */
 package androidx.pluginmgr;
 
+import android.app.Instrumentation;
+import android.content.ActivityNotFoundException;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.res.AssetManager;
+import android.content.res.Resources;
+import android.util.Log;
+
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
-import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import android.app.Activity;
-import android.app.Application;
-import android.app.Service;
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.Intent;
-import android.content.res.AssetManager;
-import android.content.res.Resources;
-import android.util.Log;
+import androidx.pluginmgr.delegate.DelegateActivityThread;
+import androidx.pluginmgr.environment.CreateActivityData;
+import androidx.pluginmgr.environment.PlugInfo;
+import androidx.pluginmgr.environment.PluginClassLoader;
+import androidx.pluginmgr.environment.PluginInstrumentation;
+import androidx.pluginmgr.utils.FileUtil;
+import androidx.pluginmgr.utils.PluginManifestUtil;
+import androidx.pluginmgr.verify.PluginNotFoundException;
+import androidx.pluginmgr.verify.PluginOverdueVerifier;
 
 /**
- * The Plug-in Manager
- * 
+ * 插件管理器
+ *
  * @author HouKangxi
+ * @author Lody
  */
 public class PluginManager implements FileFilter {
-	private static final String tag = "plugmgr";
-	
-	private static final PluginManager instance = new PluginManager();
 
-	private final Map<String, PlugInfo> pluginIdToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
-	private final Map<String, PlugInfo> pluginPkgToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
-	private Context context;
-	private String dexOutputPath;
-	private volatile boolean hasInit = false;
-	private File dexInternalStoragePath;
-	private FrameworkClassLoader frameworkClassLoader;
-	private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
-	private volatile Activity actFrom;
-	
-	private PluginManager() {
-	}
+    private static final String TAG = PluginManager.class.getSimpleName();
 
-	
-	public static PluginManager getInstance(Context context) {
-		if (instance.hasInit || context == null) {
-			if (instance.actFrom == null && context instanceof Activity) {
-				instance.actFrom = (Activity) context;
-			}
-			return instance;
-		}
-		Context ctx = context;
-		if (context instanceof Activity) {
-			instance.actFrom = (Activity) context;
-			ctx = ((Activity) context).getApplication();
-		} else if (context instanceof Service) {
-			ctx = ((Service) context).getApplication();
-		} else if (context instanceof Application) {
-			ctx = (Application) context;
-		} else {
-			ctx = context.getApplicationContext();
-		}
-		synchronized (PluginManager.class) {
-			instance.init(ctx);
-		}
-		return instance;
-	}
+    /**
+     * 插件管理器单例
+     */
+    private static PluginManager SINGLETON;
 
-	static PluginManager getInstance() {
-		return instance;
-	}
+    /**
+     * 插件包名 -- 插件信息 的映射
+     */
+    private final Map<String, PlugInfo> pluginPkgToInfoMap = new ConcurrentHashMap<String, PlugInfo>();
 
-	public boolean startMainActivity(Context context, String pkgOrId) {
-		Log.d(tag, "startMainActivity by:" + pkgOrId);
-		PlugInfo plug = preparePlugForStartActivity(context, pkgOrId);
-		if (frameworkClassLoader == null) {
-			Log.e(tag, "startMainActivity: frameworkClassLoader == null!");
-			return false;
-		}
-		if (plug.getMainActivity() == null) {
-			Log.e(tag, "startMainActivity: plug.getMainActivity() == null!");
-			return false;
-		}
-		if (plug.getMainActivity().activityInfo == null) {
-			Log.e(tag,
-					"startMainActivity: plug.getMainActivity().activityInfo == null!");
-			return false;
-		}
-		String className = frameworkClassLoader.newActivityClassName(
-				plug.getId(), plug.getMainActivity().activityInfo.name);
-		context.startActivity(new Intent().setComponent(new ComponentName(
-				context, className)));
-		return true;
-	}
+    /**
+     * 全局上下文
+     */
+    private Context context;
+    /**
+     * 插件dex opt输出路径
+     */
+    private String dexOutputPath;
+    /**
+     * 私有目录中存储插件的路径
+     */
+    private File dexInternalStoragePath;
 
-	public void startActivity(Context context, Intent intent) {
-		performStartActivity(context, intent);
-		context.startActivity(intent);
-	}
+    /**
+     * Activity生命周期监听器
+     */
+    private PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback;
 
-	public void startActivityForResult(Activity activity, Intent intent,
-			int requestCode) {
-		performStartActivity(context, intent);
-		activity.startActivityForResult(intent, requestCode);
-	}
+    /**
+     * 插件过期验证器
+     */
+    private PluginOverdueVerifier pluginOverdueVerifier;
 
-	private PlugInfo preparePlugForStartActivity(Context context,
-			String plugIdOrPkg) {
-		PlugInfo plug = null;
-		plug = getPluginByPackageName(plugIdOrPkg);
-		if (plug == null) {
-			plug = getPluginById(plugIdOrPkg);
-		}
-		if (plug == null) {
-			throw new IllegalArgumentException("plug not found by:"
-					+ plugIdOrPkg);
-		}
-		return plug;
-	}
-
-	private void performStartActivity(Context context, Intent intent) {
-		checkInit();
-
-		String plugIdOrPkg;
-		String actName;
-		ComponentName origComp = intent.getComponent();
-		if (origComp != null) {
-			plugIdOrPkg = origComp.getPackageName();
-			actName = origComp.getClassName();
-		} else {
-			throw new IllegalArgumentException(
-					"plug intent must set the ComponentName!");
-		}
-		PlugInfo plug = preparePlugForStartActivity(context, plugIdOrPkg);
-		String className = frameworkClassLoader.newActivityClassName(
-				plug.getId(), actName);
-		Log.i(tag, "performStartActivity: " + actName);
-		ComponentName comp = new ComponentName(context, className);
-		intent.setAction(null);
-		intent.setComponent(comp);
-	}
+    private PluginInstrumentation pluginInstrumentation;
 
 
-	private void init(Context ctx) {
-		Log.i(tag, "init()...");
-		context = ctx;
-		File optimizedDexPath = ctx.getDir("plugsout", Context.MODE_PRIVATE);
-		if (!optimizedDexPath.exists()) {
-			optimizedDexPath.mkdirs();
-		}
-		dexOutputPath = optimizedDexPath.getAbsolutePath();
-		dexInternalStoragePath = context
-				.getDir("plugins", Context.MODE_PRIVATE);
-		dexInternalStoragePath.mkdirs();
-		// change ClassLoader
-		try {
-			Object mPackageInfo = ReflectionUtils.getFieldValue(ctx,
-					"mBase.mPackageInfo", true);
-			frameworkClassLoader = new FrameworkClassLoader(
-					ctx.getClassLoader());
-			// set Application's classLoader to FrameworkClassLoader
-			ReflectionUtils.setFieldValue(mPackageInfo, "mClassLoader",
-					frameworkClassLoader, true);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		hasInit = true;
-	}
+    /**
+     * 插件管理器私有构造器
+     *
+     * @param context Application上下文
+     */
+    private PluginManager(Context context) {
+        this.context = context;
+        File optimizedDexPath = context.getDir(Globals.PRIVATE_PLUGIN_OUTPUT_DIR_NAME, Context.MODE_PRIVATE);
+        if (!optimizedDexPath.exists()) {
+            if (!optimizedDexPath.mkdirs()) {
+                Log.w(TAG, "Cannot access optimizedDexPath!");
+            }
+        }
+        dexOutputPath = optimizedDexPath.getAbsolutePath();
+        dexInternalStoragePath = context
+                .getDir(Globals.PRIVATE_PLUGIN_ODEX_OUTPUT_DIR_NAME, Context.MODE_PRIVATE);
+        if (!dexInternalStoragePath.mkdirs()) {
+            Log.w(TAG, "Cannot access dexInternalStoragePath!");
+        }
+        DelegateActivityThread delegateActivityThread = DelegateActivityThread.getSingleton();
+        Instrumentation originInstrumentation = delegateActivityThread.getInstrumentation();
+        delegateActivityThread.setInstrumentation(new PluginInstrumentation(originInstrumentation));
+    }
 
-	private void checkInit() {
-		if (!hasInit) {
-			throw new IllegalStateException("PluginManager has not init!");
-		}
-	}
 
-	public PlugInfo getPluginById(String pluginId) {
-		if (pluginId == null) {
-			return null;
-		}
-		return pluginIdToInfoMap.get(pluginId);
-	}
+    /**
+     * 取得插件管理器单例,<br>
+     * NOTICE: 你必须在启动插件管理器前初始化插件管理器!
+     *
+     * @return 插件管理器单例
+     */
+    public static PluginManager getSingleton() {
+        checkInit();
+        return SINGLETON;
+    }
 
-	public PlugInfo getPluginByPackageName(String packageName) {
-		return pluginPkgToInfoMap.get(packageName);
-	}
 
-	public Collection<PlugInfo> getPlugins() {
-		return pluginIdToInfoMap.values();
-	}
+    private static void checkInit() {
+        if (SINGLETON == null) {
+            throw new IllegalStateException("Please init the PluginManager first!");
+        }
+    }
 
-	public void uninstallPluginById(String pluginId) {
-		uninstallPlugin(pluginId, true);
-	}
+    /**
+     * 初始化插件管理器,请不要传入易变的Context,那将造成内存泄露!
+     *
+     * @param context Application上下文
+     */
+    public static void init(Context context) {
+        if (SINGLETON != null) {
+            Log.w(TAG, "PluginManager have been initialized, YOU needn't initialize it again!");
+            return;
+        }
+        Log.i(TAG, "init PluginManager...");
+        SINGLETON = new PluginManager(context);
+    }
 
-	public void uninstallPluginByPkg(String pkg) {
-		uninstallPlugin(pkg, false);
-	}
+    /**
+     * 尝试通过插件ID或插件包名取得插件信息,如果插件没有找到,抛出异常.
+     *
+     * @param plugPkg 插件ID或插件包名
+     * @return 插件信息
+     */
+    public PlugInfo tryGetPluginInfo(String plugPkg) throws PluginNotFoundException {
+        PlugInfo plug = findPluginByPackageName(plugPkg);
+        if (plug == null) {
+            throw new PluginNotFoundException("plug not found by:"
+                    + plugPkg);
+        }
+        return plug;
+    }
 
-	private void uninstallPlugin(String k, boolean isId) {
-		checkInit();
-		PlugInfo pl = isId ? removePlugById(k) : removePlugByPkg(k);
-		if (pl == null) {
-			return;
-		}
-		if (context instanceof Application) {
-			if (android.os.Build.VERSION.SDK_INT >= 14) {
-				try {
-					Application.class
-							.getMethod(
-									"unregisterComponentCallbacks",
-									Class.forName("android.content.ComponentCallbacks"))
-							.invoke(context, pl.getApplication());
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	}
+    public File getPluginBasePath(PlugInfo plugInfo) {
+        return new File(getDexInternalStoragePath(), plugInfo.getId() + "-dir");
+    }
 
-	private PlugInfo removePlugById(String pluginId) {
-		PlugInfo pl = null;
-		synchronized (this) {
-			pl = pluginIdToInfoMap.remove(pluginId);
-			if (pl == null) {
-				return null;
-			}
-			pluginPkgToInfoMap.remove(pl.getPackageName());
-		}
-		return pl;
-	}
+    public File getPluginLibPath(PlugInfo plugInfo) {
+        return new File(getDexInternalStoragePath(), plugInfo.getId() + "-dir/lib/");
+    }
 
-	private PlugInfo removePlugByPkg(String pkg) {
-		PlugInfo pl = null;
-		synchronized (this) {
-			pl = pluginPkgToInfoMap.remove(pkg);
-			if (pl == null) {
-				return null;
-			}
-			pluginIdToInfoMap.remove(pl.getId());
-		}
-		return pl;
-	}
 
-	/**
-	 * 加载指定插件或指定目录下的所有插件
-	 * <p>
-	 * 都使用文件名作为Id
-	 * 
-	 * @param pluginSrcDirFile
-	 *            - apk或apk目录
-	 * @return 插件集合
-	 * @throws Exception
-	 */
-	public Collection<PlugInfo> loadPlugin(final File pluginSrcDirFile)
-			throws Exception {
-		checkInit();
-		if (pluginSrcDirFile == null || !pluginSrcDirFile.exists()) {
-			Log.e(tag, "invalidate plugin file or Directory :"
-					+ pluginSrcDirFile);
-			return null;
-		}
-		if (pluginSrcDirFile.isFile()) {
-			// 如果是文件则尝试加载单个插件，暂不检查文件类型，除apk外，以后可能支持加载其他类型文件,如jar
-			PlugInfo one = loadPluginWithId(pluginSrcDirFile, null, null);
-			return Collections.singletonList(one);
-		}
-		// clear all first
-		synchronized (this) {
-			pluginPkgToInfoMap.clear();
-			pluginIdToInfoMap.clear();
-		}
-		File[] pluginApks = pluginSrcDirFile.listFiles(this);
-		if (pluginApks == null || pluginApks.length < 1) {
-			throw new FileNotFoundException("could not find plugins in:"
-					+ pluginSrcDirFile);
-		}
-		for (File pluginApk : pluginApks) {
-			PlugInfo plugInfo = buildPlugInfo(pluginApk, null, null);
-			if (plugInfo != null) {
-				savePluginToMap(plugInfo);
-			}
-		}
-		return pluginIdToInfoMap.values();
-	}
+    /**
+     * 指定插件包名取得插件信息
+     *
+     * @param packageName 插件包名
+     * @return 插件信息
+     */
+    public PlugInfo findPluginByPackageName(String packageName) {
+        return pluginPkgToInfoMap.get(packageName);
+    }
 
-	private synchronized void savePluginToMap(PlugInfo plugInfo) {
-		pluginPkgToInfoMap.put(plugInfo.getPackageName(), plugInfo);
-		pluginIdToInfoMap.put(plugInfo.getId(), plugInfo);
-	}
+    /**
+     * 取得当前维护的全部插件
+     *
+     * @return 当前维护的全部插件
+     */
+    public Collection<PlugInfo> getPlugins() {
+        return pluginPkgToInfoMap.values();
+    }
 
-	// /**
-	// * 单独加载一个apk <br/>
-	// * 使用文件名作为插件id <br/>
-	// * 目标文件也是与源文件同名
-	// *
-	// * @param pluginApk
-	// * @return
-	// * @throws Exception
-	// */
-	// public PlugInfo loadPlugin(File pluginApk) throws Exception {
-	// return loadPluginWithId(pluginApk, null, null);
-	// }
+    /**
+     * 指定包名卸载一个插件
+     *
+     * @param pkg 插件包名
+     */
+    public void uninstallPluginByPkg(String pkg) {
+        removePlugByPkg(pkg);
+    }
 
-	/**
-	 * 单独加载一个apk
-	 * 
-	 * @param pluginApk
-	 * @param pluginId
-	 *            - 如果参数为null,则使用文件名作为插件id
-	 * @return
-	 * @throws Exception
-	 */
-	public PlugInfo loadPluginWithId(File pluginApk, String pluginId)
-			throws Exception {
-		return loadPluginWithId(pluginApk, pluginId, null);
-	}
 
-	public PlugInfo loadPluginWithId(File pluginApk, String pluginId,
-			String targetFileName) throws Exception {
-		checkInit();
-		PlugInfo plugInfo = buildPlugInfo(pluginApk, pluginId, targetFileName);
-		if (plugInfo != null) {
-			savePluginToMap(plugInfo);
-		}
-		return plugInfo;
-	}
+    private PlugInfo removePlugByPkg(String pkg) {
+        PlugInfo pl;
+        synchronized (this) {
+            pl = pluginPkgToInfoMap.remove(pkg);
+            if (pl == null) {
+                return null;
+            }
+        }
+        return pl;
+    }
 
-	private PlugInfo buildPlugInfo(File pluginApk, String pluginId,
-			String targetFileName) throws Exception {
-		PlugInfo info = new PlugInfo();
-		info.setId(pluginId == null ? pluginApk.getName() : pluginId);
+    /**
+     * 加载指定插件或指定目录下的所有插件
+     * <p>
+     * 都使用文件名作为Id
+     *
+     * @param pluginSrcDirFile - apk或apk目录
+     * @return 插件集合
+     * @throws Exception
+     */
+    public Collection<PlugInfo> loadPlugin(final File pluginSrcDirFile)
+            throws Exception {
+        if (pluginSrcDirFile == null || !pluginSrcDirFile.exists()) {
+            Log.e(TAG, "invalidate plugin file or Directory :"
+                    + pluginSrcDirFile);
+            return null;
+        }
+        if (pluginSrcDirFile.isFile()) {
+            // 如果是文件则尝试加载单个插件，暂不检查文件类型，除apk外，以后可能支持加载其他类型文件,如jar
+            PlugInfo one = buildPlugInfo(pluginSrcDirFile, null, null);
+            if (one != null) {
+                savePluginToMap(one);
+            }
+            return Collections.singletonList(one);
+        }
+        // clear all first
+        synchronized (this) {
+            pluginPkgToInfoMap.clear();
+        }
+        File[] pluginApkFiles = pluginSrcDirFile.listFiles(this);
+        if (pluginApkFiles == null || pluginApkFiles.length < 1) {
+            throw new FileNotFoundException("could not find plugins in:"
+                    + pluginSrcDirFile);
+        }
+        for (File pluginApk : pluginApkFiles) {
+            PlugInfo plugInfo = buildPlugInfo(pluginApk, null, null);
+            if (plugInfo != null) {
+                savePluginToMap(plugInfo);
+            }
+        }
+        return pluginPkgToInfoMap.values();
+    }
 
-		File privateFile = new File(dexInternalStoragePath,
-				targetFileName == null ? pluginApk.getName() : targetFileName);
+    private synchronized void savePluginToMap(PlugInfo plugInfo) {
+        pluginPkgToInfoMap.put(plugInfo.getPackageName(), plugInfo);
+    }
 
-		info.setFilePath(privateFile.getAbsolutePath());
 
-		if (!pluginApk.getAbsolutePath().equals(privateFile.getAbsolutePath())) {
-			copyApkToPrivatePath(pluginApk, privateFile);
-		}
-		String dexPath = privateFile.getAbsolutePath();
-		PluginManifestUtil.setManifestInfo(context, dexPath, info);
+    private PlugInfo buildPlugInfo(File pluginApk, String pluginId,
+                                   String targetFileName) throws Exception {
+        PlugInfo info = new PlugInfo();
+        info.setId(pluginId == null ? pluginApk.getName() : pluginId);
 
-		PluginClassLoader loader = new PluginClassLoader(dexPath,
-				dexOutputPath, frameworkClassLoader, info);
-		info.setClassLoader(loader);
+        File privateFile = new File(dexInternalStoragePath,
+                targetFileName == null ? pluginApk.getName() : targetFileName);
 
-		try {
-			AssetManager am = (AssetManager) AssetManager.class.newInstance();
-			am.getClass().getMethod("addAssetPath", String.class)
-					.invoke(am, dexPath);
-			info.setAssetManager(am);
-			Resources ctxres = context.getResources();
-			Resources res = new Resources(am, ctxres.getDisplayMetrics(),
-					ctxres.getConfiguration());
-			info.setResources(res);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		if (actFrom != null) {
-			initPluginApplication(info, actFrom, true);
-		}
-		// createPluginActivityProxyDexes(info);
-		Log.i(tag, "buildPlugInfo: " + info);
-		return info;
-	}
+        info.setFilePath(privateFile.getAbsolutePath());
+        //Copy Plugin to Private Dir
+        if (!pluginApk.getAbsolutePath().equals(privateFile.getAbsolutePath())) {
+            copyApkToPrivatePath(pluginApk, privateFile);
+        }
+        String dexPath = privateFile.getAbsolutePath();
+        //Load Plugin Manifest
+        PluginManifestUtil.setManifestInfo(context, dexPath, info);
+        //Load Plugin Res
+        try {
+            AssetManager am = AssetManager.class.newInstance();
+            am.getClass().getMethod("addAssetPath", String.class)
+                    .invoke(am, dexPath);
+            info.setAssetManager(am);
+            Resources hotRes = context.getResources();
+            Resources res = new Resources(am, hotRes.getDisplayMetrics(),
+                    hotRes.getConfiguration());
+            info.setResources(res);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        //Load  classLoader for Plugin
+        PluginClassLoader pluginClassLoader = new PluginClassLoader(info, dexPath, dexOutputPath
+                , getPluginLibPath(info).getAbsolutePath(), ClassLoader.getSystemClassLoader().getParent());
+        info.setClassLoader(pluginClassLoader);
 
-	// private void createPluginActivityProxyDexes(PlugInfo plugin) {
-	// {
-	// ActInfo act = plugin.getApplicationInfo().getMainActivity();
-	// if (act != null) {
-	// ActivityOverider.createProxyDex(plugin, act.name, false);
-	// }
-	// }
-	// if (plugin.getApplicationInfo().getOtherActivities() != null) {
-	// for (ActInfo act : plugin.getApplicationInfo().getOtherActivities())
-	// {
-	// ActivityOverider.createProxyDex(plugin, act.name, false);
-	// }
-	// }
-	// }
-	void initPluginApplication(final PlugInfo info, Activity actFrom)
-			throws Exception {
-		initPluginApplication(info, actFrom, false);
-	}
+        Log.i(TAG, "buildPlugInfo: " + info);
+        return info;
+    }
 
-	private void initPluginApplication(final PlugInfo plugin, Activity actFrom, boolean onLoad) throws Exception {
-		if (!onLoad && plugin.getApplication() != null) {
-			return;
-		}
-		final String className = plugin.getPackageInfo().applicationInfo.name;
-		if (className == null) {
-			if (onLoad) {
-				return;
-			}
-			Application application = new Application();
-			setApplicationBase(plugin, application);
-			return;
-		}
-		Log.d(tag, plugin.getId() + ", ApplicationClassName = " + className);
-		
-		Runnable setApplicationTask = new Runnable() {
-			public void run() {
-				ClassLoader loader = plugin.getClassLoader();
-				try {
-					Class<?> applicationClass = loader.loadClass(className);
-					Application application = (Application) applicationClass
-							.newInstance();
-					setApplicationBase(plugin, application);
-					// invoke plugin application's onCreate()
-					application.onCreate();
-				} catch (Throwable e) {
-					Log.e(tag, Log.getStackTraceString(e));
-				}
-			}
-		};
-		// create Application instance for plugin
-		if (actFrom == null) {
-			if(onLoad)
-			return;
-			setApplicationTask.run();
-		}else{
-			actFrom.runOnUiThread(setApplicationTask);
-		}
-	}
 
-	private void setApplicationBase(PlugInfo plugin, Application application)
-			throws Exception {
-		
-		synchronized (plugin) {
-			if (plugin.getApplication() != null) {
-				// set plugin's Application only once
-				return;
-			}
-			plugin.setApplication(application);
-			//
-			PluginContextWrapper ctxWrapper = new PluginContextWrapper(context,
-					plugin);
-			plugin.appWrapper = ctxWrapper;
-			// attach
-			Method attachMethod = android.app.Application.class.getDeclaredMethod(
-					"attach", Context.class);
-			attachMethod.setAccessible(true);
-			attachMethod.invoke(application, ctxWrapper);
-			if (context instanceof Application) {
-				if (android.os.Build.VERSION.SDK_INT >= 14) {
-					Application.class.getMethod("registerComponentCallbacks",
-							Class.forName("android.content.ComponentCallbacks"))
-							.invoke(context, application);
-				}
-			}
-			
-		}
-	}
+    /**
+     * 将Apk复制到私有目录
+     *
+     * @param pluginApk    插件apk原始路径
+     * @param targetPutApk 要拷贝到的目标位置
+     */
+    private void copyApkToPrivatePath(File pluginApk, File targetPutApk) {
+        if (targetPutApk.exists() && pluginOverdueVerifier != null && pluginOverdueVerifier.isOverdue(pluginApk, targetPutApk)) {
+            return;
+        }
+        FileUtil.copyFile(pluginApk, targetPutApk);
+    }
 
-	private void copyApkToPrivatePath(File pluginApk, File f) {
-		// if (f.exists() && pluginApk.length() == f.length()) {
-		// // 这里只是简单的判断如果两个文件长度相同则不拷贝，严格的做应该比较签名如 md5\sha-1
-		// return;
-		// }
-		FileUtil.copyFile(pluginApk, f);
-	}
+    /**
+     * @return 存储插件的私有目录
+     */
+    File getDexInternalStoragePath() {
+        return dexInternalStoragePath;
+    }
 
-	File getDexInternalStoragePath() {
-		return dexInternalStoragePath;
-	}
+    Context getContext() {
+        return context;
+    }
 
-	Context getContext() {
-		return context;
-	}
+    /**
+     * @return 插件Activity生命周期监听器
+     */
+    public PluginActivityLifeCycleCallback getPluginActivityLifeCycleCallback() {
+        return pluginActivityLifeCycleCallback;
+    }
 
-	public PluginActivityLifeCycleCallback getPluginActivityLifeCycleCallback() {
-		return pluginActivityLifeCycleCallback;
-	}
+    /**
+     * 设置插件Activity生命周期监听器
+     *
+     * @param pluginActivityLifeCycleCallback 插件Activity生命周期监听器
+     */
+    public void setPluginActivityLifeCycleCallback(
+            PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback) {
+        this.pluginActivityLifeCycleCallback = pluginActivityLifeCycleCallback;
+    }
 
-	public void setPluginActivityLifeCycleCallback(
-			PluginActivityLifeCycleCallback pluginActivityLifeCycleCallback) {
-		this.pluginActivityLifeCycleCallback = pluginActivityLifeCycleCallback;
-	}
+    /**
+     * @return 插件验证校检器
+     */
+    public PluginOverdueVerifier getPluginOverdueVerifier() {
+        return pluginOverdueVerifier;
+    }
 
-	FrameworkClassLoader getFrameworkClassLoader() {
-		return frameworkClassLoader;
-	}
+    /**
+     * 设置插件验证校检器
+     *
+     * @param pluginOverdueVerifier 插件验证校检器
+     */
+    public void setPluginOverdueVerifier(PluginOverdueVerifier pluginOverdueVerifier) {
+        this.pluginOverdueVerifier = pluginOverdueVerifier;
+    }
 
-	@Override
-	public boolean accept(File pathname) {
-		if (pathname.isDirectory()) {
-			return false;
-		}
-		String fname = pathname.getName();
-		return fname.endsWith(".apk");
-	}
+    @Override
+    public boolean accept(File pathname) {
+        return !pathname.isDirectory() && pathname.getName().endsWith(".apk");
+    }
 
+
+    //======================================================
+    //=================启动插件相关方法=======================
+    //======================================================
+
+    public void startMainActivity(Context from, PlugInfo plugInfo) {
+        if (!pluginPkgToInfoMap.containsKey(plugInfo.getPackageName())) {
+            return;
+        }
+        ActivityInfo activityInfo = plugInfo.getMainActivity().activityInfo;
+        if (activityInfo == null) {
+            throw new ActivityNotFoundException("Cannot find Main Activity from plugin.");
+        }
+        String mainActivityName = plugInfo.getMainActivity().activityInfo.name;
+        CreateActivityData createActivityData = new CreateActivityData(mainActivityName, plugInfo.getPackageName());
+        Intent intent = new Intent(from, Globals.selectDynamicActivity(activityInfo));
+        intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
+        from.startActivity(intent);
+    }
+
+    public void startMainActivity(Context from, String pluginPkgName) throws PluginNotFoundException, ActivityNotFoundException {
+        PlugInfo plugInfo = tryGetPluginInfo(pluginPkgName);
+        startMainActivity(from, plugInfo);
+    }
+
+    public void startActivity(Context from, PlugInfo plugInfo, String targetActivity) {
+        ActivityInfo activityInfo = plugInfo.queryActivityInfoByName(targetActivity);
+        if (activityInfo == null) {
+            throw new ActivityNotFoundException("Cannot find " + targetActivity + " from plugin, could you declare this Activity in plugin?");
+        }
+        CreateActivityData createActivityData = new CreateActivityData(targetActivity, plugInfo.getPackageName());
+        Intent intent = new Intent(from, Globals.selectDynamicActivity(activityInfo));
+        intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
+        from.startActivity(intent);
+    }
+
+    public void startActivity(Context from, String pluginPkgName, String targetActivity) throws PluginNotFoundException, ActivityNotFoundException {
+        PlugInfo plugInfo = tryGetPluginInfo(pluginPkgName);
+        startActivity(from, plugInfo, targetActivity);
+    }
+
+    public void dump() {
+        Log.d(TAG, pluginPkgToInfoMap.size() + " Plugins is loaded, " + Arrays.toString(pluginPkgToInfoMap.values().toArray()));
+    }
 }

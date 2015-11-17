@@ -13,18 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package androidx.pluginmgr;
+package androidx.pluginmgr.utils;
 
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
-import java.nio.channels.ReadableByteChannel;
 
 /**
  * 文件操作工具类
@@ -34,7 +31,7 @@ import java.nio.channels.ReadableByteChannel;
  * @author HouKangxi
  *
  */
-class FileUtil {
+public class FileUtil {
 
 	public static void writeToFile(InputStream dataIns, File target) throws IOException {
 		final int BUFFER = 1024;
@@ -46,50 +43,6 @@ class FileUtil {
 			bos.write(data, 0, count);
 		}
 		bos.close(); 
-	}
-	public static void writeToFile1(InputStream dataIns, File target) throws IOException {
-		FileOutputStream fo = null;
-		ReadableByteChannel src = null;
-		FileChannel out = null;
-		try {
-			int len = dataIns.available();
-			src = Channels.newChannel(dataIns);
-			fo = new FileOutputStream(target);
-			out = fo.getChannel();
-			out.transferFrom(src, 0, len);
-		} finally {
-			if (fo != null) {
-				fo.close();
-			}
-			if (src != null) {
-				src.close();
-			}
-			if (out != null) {
-				out.close();
-			}
-		}
-	}
-	
-	public static void writeToFile(byte[] data, File target) throws IOException {
-		FileOutputStream fo = null;
-		ReadableByteChannel src = null;
-		FileChannel out = null;
-		try {
-			src = Channels.newChannel(new ByteArrayInputStream(data));
-			fo = new FileOutputStream(target);
-			out = fo.getChannel();
-			out.transferFrom(src, 0, data.length);
-		} finally {
-			if (fo != null) {
-				fo.close();
-			}
-			if (src != null) {
-				src.close();
-			}
-			if (out != null) {
-				out.close();
-			}
-		}
 	}
 
 	/**
@@ -127,13 +80,21 @@ class FileUtil {
 			e.printStackTrace();
 		} finally {
 			try {
-				fi.close();
+				if (fi != null) {
+					fi.close();
+				}
 
-				in.close();
+				if (in != null) {
+					in.close();
+				}
 
-				fo.close();
+				if (fo != null) {
+					fo.close();
+				}
 
-				out.close();
+				if (out != null) {
+					out.close();
+				}
 
 			} catch (IOException e) {
 				e.printStackTrace();
