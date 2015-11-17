@@ -17,12 +17,15 @@ import androidx.pluginmgr.PluginManager;
 import androidx.pluginmgr.delegate.DelegateInstrumentation;
 import androidx.pluginmgr.verify.PluginNotFoundException;
 import androidx.pluginmgr.reflect.Reflect;
+import android.view.ContextThemeWrapper;
+import android.content.pm.ActivityInfo;
 
 /**
  * @author Lody
  * @version 1.0
  */
-public class PluginInstrumentation extends DelegateInstrumentation {
+public class PluginInstrumentation extends DelegateInstrumentation
+{
 
     /**
      * 当前正在运行的插件
@@ -32,24 +35,31 @@ public class PluginInstrumentation extends DelegateInstrumentation {
     /**
      * @param mBase 真正的Instrumentation
      */
-    public PluginInstrumentation(Instrumentation mBase) {
+    public PluginInstrumentation(Instrumentation mBase)
+	{
         super(mBase);
     }
 
     @Override
-    public Activity newActivity(ClassLoader cl, String className, Intent intent) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+    public Activity newActivity(ClassLoader cl, String className, Intent intent) throws InstantiationException, IllegalAccessException, ClassNotFoundException
+	{
         CreateActivityData activityData = (CreateActivityData) intent.getSerializableExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN);
         //如果activityData存在,那么说明将要创建的是插件Activity
-        if (activityData != null) {
+        if (activityData != null)
+		{
             //这里找不到插件信息就会抛异常的,不用担心空指针
             PlugInfo plugInfo;
-            try {
+            try
+			{
                 plugInfo = PluginManager.getSingleton().tryGetPluginInfo(activityData.pluginPkg);
-            } catch (PluginNotFoundException e) {
+            }
+			catch (PluginNotFoundException e)
+			{
                 PluginManager.getSingleton().dump();
                 throw new IllegalAccessException("Cannot get plugin Info : " + activityData.pluginPkg);
             }
-            if (activityData.activityName != null) {
+            if (activityData.activityName != null)
+			{
                 className = activityData.activityName;
                 cl = plugInfo.getClassLoader();
             }
@@ -59,39 +69,61 @@ public class PluginInstrumentation extends DelegateInstrumentation {
 
 
     @Override
-    public void callActivityOnCreate(Activity activity, Bundle icicle) {
+    public void callActivityOnCreate(Activity activity, Bundle icicle)
+	{
         lookupActivityInPlugin(activity);
-        if (currentPlugin != null) {
+        if (currentPlugin != null)
+		{
             //初始化插件Activity
             Context baseContext = activity.getBaseContext();
             PluginContext pluginContext = new PluginContext(baseContext, currentPlugin);
-            try {
-				try{
-				//在许多设备上，Activity自身hold资源
-				Reflect.on(activity).set("mResources",pluginContext.getResources());
-				}catch(Throwable ignored){}
-				
+            try
+			{
+				try
+				{
+					//在许多设备上，Activity自身hold资源
+					Reflect.on(activity).set("mResources", pluginContext.getResources());
+				}
+				catch (Throwable ignored)
+				{}
+
                 Field field = ContextWrapper.class.getDeclaredField("mBase");
                 field.setAccessible(true);
                 field.set(activity, pluginContext);
-				
+
 				Reflect.on(activity).set("mApplication", currentPlugin.getApplication());
-				
-            } catch (Throwable e) {
+
+            }
+			catch (Throwable e)
+			{
                 e.printStackTrace();
             }
+			try
+			{
+				Field themeRes = ContextThemeWrapper.class.getDeclaredField("mThemeResource");
+				themeRes.setAccessible(true);
+				ActivityInfo activityInfo = currentPlugin.queryActivityInfoByName(activity.getClass().getName());
+				if (activityInfo != null)
+				{
+				    themeRes.set(activity, activityInfo.theme);
+				}
+			}
+			catch (Throwable ignored)
+			{}
         }
         super.callActivityOnCreate(activity, icicle);
     }
 
     @Override
-    public void callActivityOnResume(Activity activity) {
+    public void callActivityOnResume(Activity activity)
+	{
         lookupActivityInPlugin(activity);
         super.callActivityOnResume(activity);
     }
 
     @Override
-    public void callActivityOnDestroy(Activity activity) {
+    public void callActivityOnDestroy(Activity activity)
+	{
         super.callActivityOnDestroy(activity);
     }
 
@@ -100,22 +132,30 @@ public class PluginInstrumentation extends DelegateInstrumentation {
      *
      * @param activity Activity
      */
-    private void lookupActivityInPlugin(Activity activity) {
+    private void lookupActivityInPlugin(Activity activity)
+	{
         ClassLoader classLoader = activity.getClass().getClassLoader();
-        if (classLoader instanceof PluginClassLoader) {
+        if (classLoader instanceof PluginClassLoader)
+		{
             currentPlugin = ((PluginClassLoader) classLoader).getPlugInfo();
-        } else {
+        }
+		else
+		{
             currentPlugin = null;
         }
     }
 
-    private void replaceIntentTargetIfNeed(Context from, Intent intent) {
-        if (!intent.hasExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN) && currentPlugin != null) {
+    private void replaceIntentTargetIfNeed(Context from, Intent intent)
+	{
+        if (!intent.hasExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN) && currentPlugin != null)
+		{
             ComponentName componentName = intent.getComponent();
-            if (componentName != null) {
+            if (componentName != null)
+			{
                 String pkgName = componentName.getPackageName();
                 String activityName = componentName.getClassName();
-                if (pkgName != null) {
+                if (pkgName != null)
+				{
                     CreateActivityData createActivityData = new CreateActivityData(activityName, currentPlugin.getPackageName());
                     intent.setClass(from, Globals.selectDynamicActivity(currentPlugin.queryActivityInfoByName(activityName)));
                     intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
@@ -126,26 +166,30 @@ public class PluginInstrumentation extends DelegateInstrumentation {
 
 
     @Override
-    public ActivityResult execStartActivity(Context who, IBinder contextThread, IBinder token, Fragment fragment, Intent intent, int requestCode) {
+    public ActivityResult execStartActivity(Context who, IBinder contextThread, IBinder token, Fragment fragment, Intent intent, int requestCode)
+	{
         replaceIntentTargetIfNeed(who, intent);
         return super.execStartActivity(who, contextThread, token, fragment, intent, requestCode);
     }
 
 
     @Override
-    public ActivityResult execStartActivity(Context who, IBinder contextThread, IBinder token, Fragment fragment, Intent intent, int requestCode, Bundle options) {
+    public ActivityResult execStartActivity(Context who, IBinder contextThread, IBinder token, Fragment fragment, Intent intent, int requestCode, Bundle options)
+	{
         replaceIntentTargetIfNeed(who, intent);
         return super.execStartActivity(who, contextThread, token, fragment, intent, requestCode, options);
     }
 
     @Override
-    public ActivityResult execStartActivity(Context who, IBinder contextThread, IBinder token, Activity target, Intent intent, int requestCode) {
+    public ActivityResult execStartActivity(Context who, IBinder contextThread, IBinder token, Activity target, Intent intent, int requestCode)
+	{
         replaceIntentTargetIfNeed(who, intent);
         return super.execStartActivity(who, contextThread, token, target, intent, requestCode);
     }
 
     @Override
-    public ActivityResult execStartActivity(Context who, IBinder contextThread, IBinder token, Activity target, Intent intent, int requestCode, Bundle options) {
+    public ActivityResult execStartActivity(Context who, IBinder contextThread, IBinder token, Activity target, Intent intent, int requestCode, Bundle options)
+	{
         replaceIntentTargetIfNeed(who, intent);
         return super.execStartActivity(who, contextThread, token, target, intent, requestCode, options);
     }
