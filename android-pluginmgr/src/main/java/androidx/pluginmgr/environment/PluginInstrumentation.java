@@ -98,18 +98,12 @@ public class PluginInstrumentation extends DelegateInstrumentation
 			{
                 e.printStackTrace();
             }
-			try
-			{
-				Field themeRes = ContextThemeWrapper.class.getDeclaredField("mThemeResource");
-				themeRes.setAccessible(true);
+			
 				ActivityInfo activityInfo = currentPlugin.queryActivityInfoByName(activity.getClass().getName());
 				if (activityInfo != null)
 				{
-				    themeRes.set(activity, activityInfo.theme);
+				    activity.setTheme( activityInfo.theme);
 				}
-			}
-			catch (Throwable ignored)
-			{}
         }
         super.callActivityOnCreate(activity, icicle);
     }

@@ -48,6 +48,7 @@ import java.lang.reflect.Field;
 import android.content.*;
 import androidx.pluginmgr.environment.PluginContext;
 import androidx.pluginmgr.verify.SimpleLengthVerifier;
+import android.os.Build;
 
 /**
  * 插件管理器
@@ -304,6 +305,7 @@ public class PluginManager implements FileFilter {
 		}
 		Application app = makeApplication(pluginClassLoader,appClassName);
 		attachBaseContext(info,app);
+		
 		info.setApplication(app);
         Log.i(TAG, "buildPlugInfo: " + info);
         return info;

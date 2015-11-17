@@ -27,7 +27,7 @@ public class MainActivity extends Activity {
 	private PluginManager plugMgr;
 
 	private static final String sdcard = Environment
-			.getExternalStorageDirectory().getPath();
+			.getExternalStorageDirectory().getAbsolutePath();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
