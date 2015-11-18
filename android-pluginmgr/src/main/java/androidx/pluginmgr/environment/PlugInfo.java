@@ -60,6 +60,9 @@ public class PlugInfo implements Serializable {
 
 
     public ActivityInfo findActivityByClassNameFromPkg(String actName) {
+        if (actName.startsWith(".")) {
+            actName = getPackageName() + actName;
+        }
         if (packageInfo.activities == null) {
 			return null;
 		}
@@ -74,7 +77,10 @@ public class PlugInfo implements Serializable {
 		if (packageInfo.activities == null) {
 			return null;
 		}
-		ResolveInfo act = activities.get(actName);
+        if (actName.startsWith(".")) {
+            actName = getPackageName() + actName;
+        }
+        ResolveInfo act = activities.get(actName);
 		if (act == null) {
 			return null;
 		}
@@ -85,7 +91,8 @@ public class PlugInfo implements Serializable {
 		if (activities == null || activities.isEmpty()) {
 			return null;
 		}
-		for (ResolveInfo act : activities.values()) {
+
+        for (ResolveInfo act : activities.values()) {
 			if (act.filter != null && act.filter.hasAction(action)) {
 				return act.activityInfo;
 			}
@@ -253,20 +260,6 @@ public class PlugInfo implements Serializable {
         this.classLoader = classLoader;
     }
 
-    /**
-     * 根据类名查询插件ActivityInfo信息
-     *
-     * @param activityName 插件activity类名
-     * @return 插件ActivityInfo信息或NULL
-     */
-    public ActivityInfo queryActivityInfoByName(String activityName) {
-        for (ResolveInfo resolveInfo : activities.values()) {
-            if (resolveInfo.activityInfo.name.equals(activityName)) {
-                return resolveInfo.activityInfo;
-            }
-        }
-        return null;
-    }
 
     @Override
     public int hashCode() {

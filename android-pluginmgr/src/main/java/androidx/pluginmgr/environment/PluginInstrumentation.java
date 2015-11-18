@@ -7,18 +7,21 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.view.ContextThemeWrapper;
+import android.view.LayoutInflater;
+import android.view.Window;
 
 import java.lang.reflect.Field;
 
 import androidx.pluginmgr.Globals;
 import androidx.pluginmgr.PluginManager;
 import androidx.pluginmgr.delegate.DelegateInstrumentation;
-import androidx.pluginmgr.verify.PluginNotFoundException;
 import androidx.pluginmgr.reflect.Reflect;
-import android.view.ContextThemeWrapper;
-import android.content.pm.ActivityInfo;
+import androidx.pluginmgr.verify.PluginNotFoundException;
+import androidx.pluginmgr.widget.LayoutInflaterWrapper;
 
 /**
  * @author Lody
@@ -98,13 +101,47 @@ public class PluginInstrumentation extends DelegateInstrumentation
 			{
                 e.printStackTrace();
             }
-			
-				ActivityInfo activityInfo = currentPlugin.queryActivityInfoByName(activity.getClass().getName());
-				if (activityInfo != null)
+
+            ActivityInfo activityInfo = currentPlugin.findActivityByClassName(activity.getClass().getName());
+            if (activityInfo != null)
 				{
-				    activity.setTheme( activityInfo.theme);
-				}
+                    //根据AndroidManifest.xml中的参数设置Theme
+                    int resTheme = activityInfo.getThemeResource();
+                    if (resTheme != 0) {
+                        boolean hasNotSetTheme = true;
+                        try {
+                            Field mTheme = ContextThemeWrapper.class
+                                    .getDeclaredField("mTheme");
+                            mTheme.setAccessible(true);
+                            hasNotSetTheme = mTheme.get(activity) == null;
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        if (hasNotSetTheme) {
+                            changeActivityInfo(activityInfo, activity);
+                            activity.setTheme(resTheme);
+                        }
+                    }
+
+                }
+
+            // 如果是三星手机，则使用包装的LayoutInflater替换原LayoutInflater
+            // 这款手机在解析内置的布局文件时有各种错误
+            if (android.os.Build.MODEL.startsWith("GT")) {
+                Window window = activity.getWindow();
+                Reflect windowRef = Reflect.on(window);
+                try {
+                    LayoutInflater originInflater = window.getLayoutInflater();
+                    if (!(originInflater instanceof LayoutInflaterWrapper)) {
+                        windowRef.set("mLayoutInflater", new LayoutInflaterWrapper(originInflater));
+                    }
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            }
         }
+
+
         super.callActivityOnCreate(activity, icicle);
     }
 
@@ -113,6 +150,23 @@ public class PluginInstrumentation extends DelegateInstrumentation
 	{
         lookupActivityInPlugin(activity);
         super.callActivityOnResume(activity);
+    }
+
+    private static void changeActivityInfo(ActivityInfo activityInfo, Activity activity) {
+        Field field_mActivityInfo;
+        try {
+            field_mActivityInfo = Activity.class.getDeclaredField("mActivityInfo");
+            field_mActivityInfo.setAccessible(true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+        try {
+            field_mActivityInfo.set(activity, activityInfo);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
     @Override
@@ -151,7 +205,7 @@ public class PluginInstrumentation extends DelegateInstrumentation
                 if (pkgName != null)
 				{
                     CreateActivityData createActivityData = new CreateActivityData(activityName, currentPlugin.getPackageName());
-                    intent.setClass(from, Globals.selectDynamicActivity(currentPlugin.queryActivityInfoByName(activityName)));
+                    intent.setClass(from, Globals.selectDynamicActivity(currentPlugin.findActivityByClassName(activityName)));
                     intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
                 }
             }

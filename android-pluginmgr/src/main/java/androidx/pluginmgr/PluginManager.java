@@ -15,21 +15,31 @@
  */
 package androidx.pluginmgr;
 
+import android.app.Application;
 import android.app.Instrumentation;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,18 +47,13 @@ import androidx.pluginmgr.delegate.DelegateActivityThread;
 import androidx.pluginmgr.environment.CreateActivityData;
 import androidx.pluginmgr.environment.PlugInfo;
 import androidx.pluginmgr.environment.PluginClassLoader;
+import androidx.pluginmgr.environment.PluginContext;
 import androidx.pluginmgr.environment.PluginInstrumentation;
 import androidx.pluginmgr.utils.FileUtil;
 import androidx.pluginmgr.utils.PluginManifestUtil;
 import androidx.pluginmgr.verify.PluginNotFoundException;
 import androidx.pluginmgr.verify.PluginOverdueVerifier;
-import android.content.pm.ApplicationInfo;
-import android.app.*;
-import java.lang.reflect.Field;
-import android.content.*;
-import androidx.pluginmgr.environment.PluginContext;
 import androidx.pluginmgr.verify.SimpleLengthVerifier;
-import android.os.Build;
 
 /**
  * 插件管理器
@@ -95,6 +100,8 @@ public class PluginManager implements FileFilter {
 
     private PluginInstrumentation pluginInstrumentation;
 
+    private Handler uiHandler;
+
 
     /**
      * 插件管理器私有构造器
@@ -102,6 +109,9 @@ public class PluginManager implements FileFilter {
      * @param context Application上下文
      */
     private PluginManager(Context context) {
+        if (!isMainThread()) {
+            throw new IllegalThreadStateException("PluginManager must init in UI Thread!");
+        }
         this.context = context;
         File optimizedDexPath = context.getDir(Globals.PRIVATE_PLUGIN_OUTPUT_DIR_NAME, Context.MODE_PRIVATE);
         if (!optimizedDexPath.exists()) {
@@ -115,9 +125,10 @@ public class PluginManager implements FileFilter {
         if (!dexInternalStoragePath.mkdirs()) {
             Log.w(TAG, "Cannot access dexInternalStoragePath!");
         }
+        uiHandler = new Handler(Looper.getMainLooper());
         DelegateActivityThread delegateActivityThread = DelegateActivityThread.getSingleton();
         Instrumentation originInstrumentation = delegateActivityThread.getInstrumentation();
-		pluginInstrumentation = new PluginInstrumentation(originInstrumentation);
+        pluginInstrumentation = new PluginInstrumentation(originInstrumentation);
         delegateActivityThread.setInstrumentation(pluginInstrumentation);
     }
 
@@ -252,9 +263,13 @@ public class PluginManager implements FileFilter {
                     + pluginSrcDirFile);
         }
         for (File pluginApk : pluginApkFiles) {
-            PlugInfo plugInfo = buildPlugInfo(pluginApk, null, null);
-            if (plugInfo != null) {
-                savePluginToMap(plugInfo);
+            try {
+                PlugInfo plugInfo = buildPlugInfo(pluginApk, null, null);
+                if (plugInfo != null) {
+                    savePluginToMap(plugInfo);
+                }
+            } catch (Throwable e) {
+                e.printStackTrace();
             }
         }
         return pluginPkgToInfoMap.values();
@@ -298,41 +313,78 @@ public class PluginManager implements FileFilter {
         PluginClassLoader pluginClassLoader = new PluginClassLoader(info, dexPath, dexOutputPath
                 , getPluginLibPath(info).getAbsolutePath(), ClassLoader.getSystemClassLoader().getParent());
         info.setClassLoader(pluginClassLoader);
-		ApplicationInfo appInfo = info.getPackageInfo().applicationInfo;
-		String appClassName = null;
-		if(appInfo != null){
-			appClassName = appInfo.name;
-		}
-		Application app = makeApplication(pluginClassLoader,appClassName);
-		attachBaseContext(info,app);
-		
-		info.setApplication(app);
+        ApplicationInfo appInfo = info.getPackageInfo().applicationInfo;
+        String appClassName = null;
+        if (appInfo != null) {
+            appClassName = appInfo.name;
+        }
+        Application app = makeApplication(pluginClassLoader, appClassName);
+        attachBaseContext(info, app);
+
+        info.setApplication(app);
         Log.i(TAG, "buildPlugInfo: " + info);
         return info;
     }
 
-	private void attachBaseContext(PlugInfo info, Application app)
-	{
-		try{
-		Field mBase = ContextWrapper.class.getDeclaredField("mBase");
-		mBase.setAccessible(true);
-		mBase.set(app, new PluginContext(context.getApplicationContext(), info));
-		app.onCreate();
-		}catch(Throwable e){
-			e.printStackTrace();
-		}
-	}
+    private void attachBaseContext(PlugInfo info, Application app) {
+        try {
+            Field mBase = ContextWrapper.class.getDeclaredField("mBase");
+            mBase.setAccessible(true);
+            mBase.set(app, new PluginContext(context.getApplicationContext(), info));
+            try {
+                app.onCreate();
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+            List<ResolveInfo> resolveInfos = info.getReceivers();
+            if (resolveInfos != null) {
+                for (ResolveInfo resolveInfo : resolveInfos) {
+                    if (resolveInfo.activityInfo != null) {
+                        registerReceiver(app, info, resolveInfo.filter, resolveInfo.activityInfo.name);
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
 
-	private Application makeApplication(PluginClassLoader pluginClassLoader, String appClassName)
-	{
-		if(appClassName != null) {
-			try{
-				return (Application) pluginClassLoader.loadClass(appClassName).newInstance();
-			}catch(Throwable ignored){}
-		}
-		
-		return new Application();
-	}
+    /**
+     * 注册插件中的Receiver
+     *
+     * @param app    插件Application
+     * @param info   插件info
+     * @param filter IntentFilter
+     * @param name   类名
+     */
+    private void registerReceiver(Application app, PlugInfo info, IntentFilter filter, String name) {
+        if (filter != null && name != null) {
+            try {
+                BroadcastReceiver receiver = (BroadcastReceiver) info.getClassLoader().loadClass(name).newInstance();
+                app.registerReceiver(receiver, filter);
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * 构造插件的Application
+     *
+     * @param pluginClassLoader 类加载器
+     * @param appClassName      类名
+     * @return
+     */
+    private Application makeApplication(PluginClassLoader pluginClassLoader, String appClassName) {
+        if (appClassName != null) {
+            try {
+                return (Application) pluginClassLoader.loadClass(appClassName).newInstance();
+            } catch (Throwable ignored) {
+            }
+        }
+
+        return new Application();
+    }
 
 
     /**
@@ -423,7 +475,7 @@ public class PluginManager implements FileFilter {
     }
 
     public void startActivity(Context from, PlugInfo plugInfo, String targetActivity) {
-        ActivityInfo activityInfo = plugInfo.queryActivityInfoByName(targetActivity);
+        ActivityInfo activityInfo = plugInfo.findActivityByClassName(targetActivity);
         if (activityInfo == null) {
             throw new ActivityNotFoundException("Cannot find " + targetActivity + " from plugin, could you declare this Activity in plugin?");
         }
@@ -440,5 +492,12 @@ public class PluginManager implements FileFilter {
 
     public void dump() {
         Log.d(TAG, pluginPkgToInfoMap.size() + " Plugins is loaded, " + Arrays.toString(pluginPkgToInfoMap.values().toArray()));
+    }
+
+    /**
+     * @return 当前是否为主线程
+     */
+    public boolean isMainThread() {
+        return Looper.getMainLooper() == Looper.myLooper();
     }
 }
