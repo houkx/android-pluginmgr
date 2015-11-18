@@ -1,7 +1,9 @@
 package androidx.pluginmgr.environment;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.Intent;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 
@@ -40,7 +42,7 @@ public class PluginContext extends LayoutInflaterProxyContext {
 
     @Override
     public Context getBaseContext() {
-        return getBaseContextInner(getBaseContext());
+        return getBaseContextInner(super.getBaseContext());
     }
 
     private Context getBaseContextInner(Context baseContext) {
@@ -49,4 +51,16 @@ public class PluginContext extends LayoutInflaterProxyContext {
         }
         return baseContext;
     }
+
+
+    @Override
+    public ComponentName startService(Intent service) {
+        return super.startService(service);
+    }
+
+    @Override
+    public boolean stopService(Intent name) {
+        return super.stopService(name);
+    }
+
 }
