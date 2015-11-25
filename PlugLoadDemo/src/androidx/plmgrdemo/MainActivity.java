@@ -79,7 +79,8 @@ public class MainActivity extends Activity {
 						try {
 							Collection<PlugInfo> plugs = plugMgr
 									.loadPlugin(new File(dirText));
-							setPlugins(plugs);
+                            PluginManager.getSingleton().dump();
+                            setPlugins(plugs);
 						} catch (Exception e) {
 							e.printStackTrace();
 						} finally {

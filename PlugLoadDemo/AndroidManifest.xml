@@ -67,7 +67,7 @@
 
     <uses-sdk
         android:minSdkVersion="10"
-        android:targetSdkVersion="21" />
+        android:targetSdkVersion="23" />
 
     <application
         android:name=".App"
@@ -76,8 +76,7 @@
         android:label="@string/app_name">
         <activity
             android:name=".MainActivity"
-            android:label="@string/app_name"
-            android:windowSoftInputMode="adjustUnspecified|stateHidden">
+            android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

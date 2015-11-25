@@ -18,14 +18,11 @@ package androidx.pluginmgr;
 import android.app.Application;
 import android.app.Instrumentation;
 import android.content.ActivityNotFoundException;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.ResolveInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.os.Handler;
@@ -39,7 +36,6 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -114,22 +110,18 @@ public class PluginManager implements FileFilter {
         }
         this.context = context;
         File optimizedDexPath = context.getDir(Globals.PRIVATE_PLUGIN_OUTPUT_DIR_NAME, Context.MODE_PRIVATE);
-        if (!optimizedDexPath.exists()) {
-            if (!optimizedDexPath.mkdirs()) {
-                Log.w(TAG, "Cannot access optimizedDexPath!");
-            }
-        }
         dexOutputPath = optimizedDexPath.getAbsolutePath();
         dexInternalStoragePath = context
                 .getDir(Globals.PRIVATE_PLUGIN_ODEX_OUTPUT_DIR_NAME, Context.MODE_PRIVATE);
-        if (!dexInternalStoragePath.mkdirs()) {
-            Log.w(TAG, "Cannot access dexInternalStoragePath!");
-        }
         uiHandler = new Handler(Looper.getMainLooper());
         DelegateActivityThread delegateActivityThread = DelegateActivityThread.getSingleton();
         Instrumentation originInstrumentation = delegateActivityThread.getInstrumentation();
-        pluginInstrumentation = new PluginInstrumentation(originInstrumentation);
-        delegateActivityThread.setInstrumentation(pluginInstrumentation);
+        if (originInstrumentation instanceof PluginInstrumentation) {
+            pluginInstrumentation = (PluginInstrumentation) originInstrumentation;
+        } else {
+            pluginInstrumentation = new PluginInstrumentation(originInstrumentation);
+            delegateActivityThread.setInstrumentation(pluginInstrumentation);
+        }
     }
 
 
@@ -246,17 +238,15 @@ public class PluginManager implements FileFilter {
             return null;
         }
         if (pluginSrcDirFile.isFile()) {
-            // 如果是文件则尝试加载单个插件，暂不检查文件类型，除apk外，以后可能支持加载其他类型文件,如jar
             PlugInfo one = buildPlugInfo(pluginSrcDirFile, null, null);
             if (one != null) {
                 savePluginToMap(one);
             }
             return Collections.singletonList(one);
         }
-        // clear all first
-        synchronized (this) {
-            pluginPkgToInfoMap.clear();
-        }
+//        synchronized (this) {
+//            pluginPkgToInfoMap.clear();
+//        }
         File[] pluginApkFiles = pluginSrcDirFile.listFiles(this);
         if (pluginApkFiles == null || pluginApkFiles.length == 0) {
             throw new FileNotFoundException("could not find plugins in:"
@@ -320,7 +310,6 @@ public class PluginManager implements FileFilter {
         }
         Application app = makeApplication(pluginClassLoader, appClassName);
         attachBaseContext(info, app);
-
         info.setApplication(app);
         Log.i(TAG, "buildPlugInfo: " + info);
         return info;
@@ -331,42 +320,11 @@ public class PluginManager implements FileFilter {
             Field mBase = ContextWrapper.class.getDeclaredField("mBase");
             mBase.setAccessible(true);
             mBase.set(app, new PluginContext(context.getApplicationContext(), info));
-            try {
-                app.onCreate();
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
-            List<ResolveInfo> resolveInfos = info.getReceivers();
-            if (resolveInfos != null) {
-                for (ResolveInfo resolveInfo : resolveInfos) {
-                    if (resolveInfo.activityInfo != null) {
-                        registerReceiver(app, info, resolveInfo.filter, resolveInfo.activityInfo.name);
-                    }
-                }
-            }
         } catch (Throwable e) {
             e.printStackTrace();
         }
     }
 
-    /**
-     * 注册插件中的Receiver
-     *
-     * @param app    插件Application
-     * @param info   插件info
-     * @param filter IntentFilter
-     * @param name   类名
-     */
-    private void registerReceiver(Application app, PlugInfo info, IntentFilter filter, String name) {
-        if (filter != null && name != null) {
-            try {
-                BroadcastReceiver receiver = (BroadcastReceiver) info.getClassLoader().loadClass(name).newInstance();
-                app.registerReceiver(receiver, filter);
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
     /**
      * 构造插件的Application
