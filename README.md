@@ -40,14 +40,37 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
 
 - load plugin from plug apk:
   ```java
-  PluginManager pluginMgr = PluginManager.getSingleton();
+  PluginManager mgr = PluginManager.getSingleton();
   File myPlug = new File("/mnt/sdcard/Download/myplug.apk");
   PlugInfo plug = pluginMgr.loadPlugin(myPlug).iterator().next();
   ```
 - start activity:
   `
-  pluginMgr.startMainActivity(context, plug);
+  mgr.startMainActivity(context, plug);
   `
+
+
+- Plugin verify feature
+  ```java
+    PluginManager.getSingleton().setPluginOverdueVerifier(new PluginOverdueVerifier() {
+            @Override
+            public boolean isOverdue(File originPluginFile, File targetExistFile) {
+                //check If the plugin has expired
+                return true;
+            }
+        });
+  ```
+
+- Use custom selector
+  ```java
+    PluginManager.getSingleton().setActivitySelector(new DynamicActivitySelector() {
+            @Override
+            public Class<? extends Activity> selectDynamicActivity(ActivityInfo pluginActivityInfo) {
+
+                return YourProxyActivity.class;
+            }
+        });
+  ```
 
 ## License
 ```java
@@ -70,5 +93,3 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
 ## About
 [author's blog](http://blog.csdn.net/hkxxx/article/details/42194387)
 ### QQGroup: 334394768
-author's email:[address1](mailto:1084940623@qq.com)
-[address2](mailto:hkx.aidream@gmail.com)
