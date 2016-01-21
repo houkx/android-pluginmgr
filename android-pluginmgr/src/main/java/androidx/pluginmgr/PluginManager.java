@@ -25,9 +25,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
-import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -45,8 +43,11 @@ import androidx.pluginmgr.environment.PlugInfo;
 import androidx.pluginmgr.environment.PluginClassLoader;
 import androidx.pluginmgr.environment.PluginContext;
 import androidx.pluginmgr.environment.PluginInstrumentation;
+import androidx.pluginmgr.selector.DefaultActivitySelector;
+import androidx.pluginmgr.selector.DynamicActivitySelector;
 import androidx.pluginmgr.utils.FileUtil;
 import androidx.pluginmgr.utils.PluginManifestUtil;
+import androidx.pluginmgr.utils.Trace;
 import androidx.pluginmgr.verify.PluginNotFoundException;
 import androidx.pluginmgr.verify.PluginOverdueVerifier;
 import androidx.pluginmgr.verify.SimpleLengthVerifier;
@@ -58,8 +59,6 @@ import androidx.pluginmgr.verify.SimpleLengthVerifier;
  * @author Lody
  */
 public class PluginManager implements FileFilter {
-
-    private static final String TAG = PluginManager.class.getSimpleName();
 
     /**
      * 插件管理器单例
@@ -94,9 +93,7 @@ public class PluginManager implements FileFilter {
      */
     private PluginOverdueVerifier pluginOverdueVerifier = new SimpleLengthVerifier();
 
-    private PluginInstrumentation pluginInstrumentation;
-
-    private Handler uiHandler;
+    private DynamicActivitySelector activitySelector = DefaultActivitySelector.getDefault();
 
 
     /**
@@ -113,13 +110,10 @@ public class PluginManager implements FileFilter {
         dexOutputPath = optimizedDexPath.getAbsolutePath();
         dexInternalStoragePath = context
                 .getDir(Globals.PRIVATE_PLUGIN_ODEX_OUTPUT_DIR_NAME, Context.MODE_PRIVATE);
-        uiHandler = new Handler(Looper.getMainLooper());
         DelegateActivityThread delegateActivityThread = DelegateActivityThread.getSingleton();
         Instrumentation originInstrumentation = delegateActivityThread.getInstrumentation();
-        if (originInstrumentation instanceof PluginInstrumentation) {
-            pluginInstrumentation = (PluginInstrumentation) originInstrumentation;
-        } else {
-            pluginInstrumentation = new PluginInstrumentation(originInstrumentation);
+        if (!(originInstrumentation instanceof PluginInstrumentation)) {
+            PluginInstrumentation pluginInstrumentation = new PluginInstrumentation(originInstrumentation);
             delegateActivityThread.setInstrumentation(pluginInstrumentation);
         }
     }
@@ -150,10 +144,10 @@ public class PluginManager implements FileFilter {
      */
     public static void init(Context context) {
         if (SINGLETON != null) {
-            Log.w(TAG, "PluginManager have been initialized, YOU needn't initialize it again!");
+            Trace.store("PluginManager have been initialized, YOU needn't initialize it again!");
             return;
         }
-        Log.i(TAG, "init PluginManager...");
+        Trace.store("init PluginManager...");
         SINGLETON = new PluginManager(context);
     }
 
@@ -233,7 +227,7 @@ public class PluginManager implements FileFilter {
     public Collection<PlugInfo> loadPlugin(final File pluginSrcDirFile)
             throws Exception {
         if (pluginSrcDirFile == null || !pluginSrcDirFile.exists()) {
-            Log.e(TAG, "invalidate plugin file or Directory :"
+            Trace.store("invalidate plugin file or Directory :"
                     + pluginSrcDirFile);
             return null;
         }
@@ -311,7 +305,7 @@ public class PluginManager implements FileFilter {
         Application app = makeApplication(pluginClassLoader, appClassName);
         attachBaseContext(info, app);
         info.setApplication(app);
-        Log.i(TAG, "buildPlugInfo: " + info);
+        Trace.store("Build pluginInfo => " + info);
         return info;
     }
 
@@ -331,7 +325,7 @@ public class PluginManager implements FileFilter {
      *
      * @param pluginClassLoader 类加载器
      * @param appClassName      类名
-     * @return
+     * @return 插件App
      */
     private Application makeApplication(PluginClassLoader pluginClassLoader, String appClassName) {
         if (appClassName != null) {
@@ -340,20 +334,25 @@ public class PluginManager implements FileFilter {
             } catch (Throwable ignored) {
             }
         }
-
+        //default application
         return new Application();
     }
 
 
     /**
      * 将Apk复制到私有目录
+     * @see PluginOverdueVerifier
+     * 可设置插件覆盖校检器来验证插件是否需要覆盖
      *
      * @param pluginApk    插件apk原始路径
      * @param targetPutApk 要拷贝到的目标位置
      */
     private void copyApkToPrivatePath(File pluginApk, File targetPutApk) {
-        if (targetPutApk.exists() && pluginOverdueVerifier != null && pluginOverdueVerifier.isOverdue(pluginApk, targetPutApk)) {
-            return;
+        if (pluginOverdueVerifier != null) {
+            //仅当私有目录中插件已存在时需要检验
+            if (targetPutApk.exists() && pluginOverdueVerifier.isOverdue(pluginApk, targetPutApk)) {
+                return;
+            }
         }
         FileUtil.copyFile(pluginApk, targetPutApk);
     }
@@ -412,7 +411,15 @@ public class PluginManager implements FileFilter {
     //=================启动插件相关方法=======================
     //======================================================
 
-    public void startMainActivity(Context from, PlugInfo plugInfo) {
+
+    /**
+     * 启动插件的主Activity
+     *
+     * @param from     fromContext
+     * @param plugInfo 插件Info
+     * @param intent   通过此Intent可以向插件传参, 可以为null
+     */
+    public void startMainActivity(Context from, PlugInfo plugInfo, Intent intent) {
         if (!pluginPkgToInfoMap.containsKey(plugInfo.getPackageName())) {
             return;
         }
@@ -420,36 +427,118 @@ public class PluginManager implements FileFilter {
         if (activityInfo == null) {
             throw new ActivityNotFoundException("Cannot find Main Activity from plugin.");
         }
-        String mainActivityName = plugInfo.getMainActivity().activityInfo.name;
-        CreateActivityData createActivityData = new CreateActivityData(mainActivityName, plugInfo.getPackageName());
-        Intent intent = new Intent(from, Globals.selectDynamicActivity(activityInfo));
-        intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
-        from.startActivity(intent);
+        startActivity(from, plugInfo, activityInfo, intent);
+
     }
 
+    /**
+     * 启动插件的主Activity
+     *
+     * @param from     fromContext
+     * @param plugInfo 插件Info
+     */
+    public void startMainActivity(Context from, PlugInfo plugInfo) {
+        startMainActivity(from, plugInfo, null);
+    }
+
+    /**
+     * 启动插件的主Activity
+     * @param from fromContext
+     * @param pluginPkgName 插件包名
+     * @throws PluginNotFoundException 该插件未加载时抛出
+     * @throws ActivityNotFoundException 插件Activity信息找不到时抛出
+     */
     public void startMainActivity(Context from, String pluginPkgName) throws PluginNotFoundException, ActivityNotFoundException {
         PlugInfo plugInfo = tryGetPluginInfo(pluginPkgName);
         startMainActivity(from, plugInfo);
     }
 
-    public void startActivity(Context from, PlugInfo plugInfo, String targetActivity) {
-        ActivityInfo activityInfo = plugInfo.findActivityByClassName(targetActivity);
+
+    /**
+     * 启动插件的指定Activity
+     *
+     * @param from         fromContext
+     * @param plugInfo     插件信息
+     * @param activityInfo 要启动的插件activity信息
+     * @param intent       通过此Intent可以向插件传参, 可以为null
+     */
+    public void startActivity(Context from, PlugInfo plugInfo, ActivityInfo activityInfo, Intent intent) {
         if (activityInfo == null) {
-            throw new ActivityNotFoundException("Cannot find " + targetActivity + " from plugin, could you declare this Activity in plugin?");
+            throw new ActivityNotFoundException("Cannot find ActivityInfo from plugin, could you declare this Activity in plugin?");
         }
-        CreateActivityData createActivityData = new CreateActivityData(targetActivity, plugInfo.getPackageName());
-        Intent intent = new Intent(from, Globals.selectDynamicActivity(activityInfo));
+        if (intent == null) {
+            intent = new Intent();
+        }
+        CreateActivityData createActivityData = new CreateActivityData(activityInfo.name, plugInfo.getPackageName());
+        intent.setClass(from, activitySelector.selectDynamicActivity(activityInfo));
         intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
         from.startActivity(intent);
     }
 
-    public void startActivity(Context from, String pluginPkgName, String targetActivity) throws PluginNotFoundException, ActivityNotFoundException {
-        PlugInfo plugInfo = tryGetPluginInfo(pluginPkgName);
-        startActivity(from, plugInfo, targetActivity);
+
+    public DynamicActivitySelector getActivitySelector() {
+        return activitySelector;
     }
 
+    public void setActivitySelector(DynamicActivitySelector activitySelector) {
+        if (activitySelector == null) {
+            activitySelector = DefaultActivitySelector.getDefault();
+        }
+        this.activitySelector = activitySelector;
+    }
+
+    /**
+     * 启动插件的指定Activity
+     *
+     * @param from           fromContext
+     * @param plugInfo       插件信息
+     * @param targetActivity 要启动的插件activity类名
+     * @param intent         通过此Intent可以向插件传参, 可以为null
+     */
+    public void startActivity(Context from, PlugInfo plugInfo, String targetActivity, Intent intent) {
+        ActivityInfo activityInfo = plugInfo.findActivityByClassName(targetActivity);
+        startActivity(from, plugInfo, activityInfo, intent);
+    }
+
+    /**
+     * 启动插件的指定Activity
+     *
+     * @param from           fromContext
+     * @param plugInfo       插件信息
+     * @param targetActivity 要启动的插件activity类名
+     */
+    public void startActivity(Context from, PlugInfo plugInfo, String targetActivity) {
+        startActivity(from, plugInfo, targetActivity, null);
+    }
+
+
+    /**
+     * 启动插件的指定Activity
+     *
+     * @param from           fromContext
+     * @param pluginPkgName  插件包名
+     * @param targetActivity 要启动的插件activity类名
+     */
+    public void startActivity(Context from, String pluginPkgName, String targetActivity) throws PluginNotFoundException, ActivityNotFoundException {
+        startActivity(from, pluginPkgName, targetActivity, null);
+    }
+
+    /**
+     * 启动插件的指定Activity
+     *
+     * @param from           fromContext
+     * @param pluginPkgName  插件包名
+     * @param targetActivity 要启动的插件activity类名
+     * @param intent         通过此Intent可以向插件传参, 可以为null
+     */
+    public void startActivity(Context from, String pluginPkgName, String targetActivity, Intent intent) throws PluginNotFoundException, ActivityNotFoundException {
+        PlugInfo plugInfo = tryGetPluginInfo(pluginPkgName);
+        startActivity(from, plugInfo, targetActivity, intent);
+    }
+
+
     public void dump() {
-        Log.d(TAG, pluginPkgToInfoMap.size() + " Plugins is loaded, " + Arrays.toString(pluginPkgToInfoMap.values().toArray()));
+        Trace.store(pluginPkgToInfoMap.size() + " Plugins is loaded, " + Arrays.toString(pluginPkgToInfoMap.values().toArray()));
     }
 
     /**

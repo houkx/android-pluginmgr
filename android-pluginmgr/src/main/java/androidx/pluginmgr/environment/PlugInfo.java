@@ -16,6 +16,7 @@
 package androidx.pluginmgr.environment;
 
 import android.app.Application;
+import android.content.BroadcastReceiver;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.ResolveInfo;
@@ -53,6 +54,7 @@ public class PlugInfo implements Serializable {
     private transient Application application;
 	private transient AssetManager assetManager;
 	private transient Resources resources;
+	private transient boolean isApplicationOnCreated;
 
 	public String getPackageName() {
 		return packageInfo.packageName;
@@ -284,6 +286,34 @@ public class PlugInfo implements Serializable {
 		} else if (!id.equals(other.id))
 			return false;
 		return true;
+	}
+
+	public boolean isApplicationCreated() {
+		return application != null && isApplicationOnCreated;
+	}
+
+	public void ensureApplicationCreated() {
+		if (application != null && !isApplicationOnCreated) {
+			synchronized (this) {
+				try {
+					application.onCreate();
+					if (receivers != null && receivers.size() > 0) {
+						for (ResolveInfo resolveInfo : receivers) {
+							if (resolveInfo.activityInfo != null) {
+								try {
+									BroadcastReceiver broadcastReceiver = (BroadcastReceiver) classLoader.loadClass(resolveInfo.activityInfo.name).newInstance();
+									application.registerReceiver(broadcastReceiver, resolveInfo.filter);
+								} catch (Throwable e) {
+									e.printStackTrace();
+								}
+							}
+						}
+					}
+				} catch (Throwable ignored) {
+				}
+				isApplicationOnCreated = true;
+			}
+		}
 	}
 
 	@Override

@@ -1,7 +1,5 @@
 package androidx.pluginmgr;
 
-import android.content.pm.ActivityInfo;
-
 /**
  * 全局声明类
  *
@@ -26,14 +24,5 @@ public class Globals {
     public static final String FLAG_ACTIVITY_FROM_PLUGIN = "flag_act_fp";
 
 
-    /**
-     * TODO:根据插件特征选择Activity
-     *
-     * @param activityInfo 插件ActivityInfo信息
-     * @return 选择的Activity
-     */
-    public static Class<?> selectDynamicActivity(ActivityInfo activityInfo) {
-        return DynamicActivity.class;
-    }
 
 }

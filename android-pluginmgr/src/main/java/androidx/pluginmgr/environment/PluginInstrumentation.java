@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.util.Log;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.Window;
@@ -48,13 +49,14 @@ public class PluginInstrumentation extends DelegateInstrumentation
 	{
         CreateActivityData activityData = (CreateActivityData) intent.getSerializableExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN);
         //如果activityData存在,那么说明将要创建的是插件Activity
-        if (activityData != null)
-		{
+        if (activityData != null && PluginManager.getSingleton().getPlugins().size() > 0) {
             //这里找不到插件信息就会抛异常的,不用担心空指针
             PlugInfo plugInfo;
             try
 			{
+                Log.d(getClass().getSimpleName(), "+++ Start Plugin Activity => " + activityData.pluginPkg + " / " + activityData.activityName);
                 plugInfo = PluginManager.getSingleton().tryGetPluginInfo(activityData.pluginPkg);
+                plugInfo.ensureApplicationCreated();
             }
 			catch (PluginNotFoundException e)
 			{
@@ -69,6 +71,7 @@ public class PluginInstrumentation extends DelegateInstrumentation
         }
         return super.newActivity(cl, className, intent);
     }
+
 
 
     @Override
@@ -86,7 +89,8 @@ public class PluginInstrumentation extends DelegateInstrumentation
 				{
 					//在许多设备上，Activity自身hold资源
 					Reflect.on(activity).set("mResources", pluginContext.getResources());
-				}
+
+                }
 				catch (Throwable ignored)
 				{}
 
@@ -205,7 +209,8 @@ public class PluginInstrumentation extends DelegateInstrumentation
                 if (pkgName != null)
 				{
                     CreateActivityData createActivityData = new CreateActivityData(activityName, currentPlugin.getPackageName());
-                    intent.setClass(from, Globals.selectDynamicActivity(currentPlugin.findActivityByClassName(activityName)));
+                    ActivityInfo activityInfo = currentPlugin.findActivityByClassName(activityName);
+                    intent.setClass(from, PluginManager.getSingleton().getActivitySelector().selectDynamicActivity(activityInfo));
                     intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
                 }
             }

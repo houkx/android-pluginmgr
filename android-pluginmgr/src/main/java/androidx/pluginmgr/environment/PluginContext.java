@@ -46,10 +46,11 @@ public class PluginContext extends LayoutInflaterProxyContext {
     }
 
     private Context getBaseContextInner(Context baseContext) {
-        if (baseContext instanceof ContextWrapper) {
-            return getBaseContextInner(((ContextWrapper) baseContext).getBaseContext());
+        Context realBaseContext = baseContext;
+        while (realBaseContext instanceof ContextWrapper) {
+            realBaseContext = ((ContextWrapper) realBaseContext).getBaseContext();
         }
-        return baseContext;
+        return realBaseContext;
     }
 
 

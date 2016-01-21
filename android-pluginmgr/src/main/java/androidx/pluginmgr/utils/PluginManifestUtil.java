@@ -65,7 +65,12 @@ public class PluginManifestUtil {
 								| PackageManager.GET_SERVICES//
 				// | PackageManager.GET_SIGNATURES//
 				);
-		info.setPackageInfo(pkgInfo);
+        if (pkgInfo == null || pkgInfo.activities == null) {
+            throw new XmlPullParserException("No any activity in " + apkPath);
+        }
+        pkgInfo.applicationInfo.publicSourceDir = apkPath;
+        pkgInfo.applicationInfo.sourceDir = apkPath;
+
 		File libDir = PluginManager.getSingleton().getPluginLibPath(info);
 		try {
 			if (extractLibFile(zipFile, libDir)) {
@@ -76,7 +81,8 @@ public class PluginManifestUtil {
 		} finally {
 			zipFile.close();
 		}
-		setAttrs(info, manifestXML);
+        info.setPackageInfo(pkgInfo);
+        setAttrs(info, manifestXML);
 	}
 	private static boolean extractLibFile(ZipFile zip, File tardir)
 			throws IOException {
