@@ -72,14 +72,14 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
         });
   ```
 - 破壳系统
-####你可以在插件中通过这种方式取得存在于宿主中的对象.
+#### 你可以在插件中通过这种方式取得存在于宿主中的对象.
   ```java
     Context hostContext = (Context) getSystemService("GetHostContext");
     String pluginPackageName = (String) getSystemService("GetPluginPkgName");
     PackageInfo pluginPackageInfo = (PackageInfo) getSystemService("GetPluginPkgInfo");
     //... 破壳系统支持的操作详见 androidx/pluginmgr/Globals.java
   ```
-  
+
 ## License
 ```java
 /*
