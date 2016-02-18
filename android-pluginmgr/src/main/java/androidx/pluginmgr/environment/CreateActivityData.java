@@ -1,5 +1,7 @@
 package androidx.pluginmgr.environment;
 
+import android.text.TextUtils;
+
 import java.io.Serializable;
 
 /**
@@ -26,15 +28,12 @@ public final class CreateActivityData implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        CreateActivityData that = (CreateActivityData) o;
-
-        if (activityName != null ? !activityName.equals(that.activityName) : that.activityName != null)
-            return false;
-        return !(pluginPkg != null ? !pluginPkg.equals(that.pluginPkg) : that.pluginPkg != null);
-
+        if (o instanceof CreateActivityData) {
+            CreateActivityData another = (CreateActivityData) o;
+            return TextUtils.equals(activityName,another.activityName)
+                    && TextUtils.equals(pluginPkg,another.pluginPkg);
+        }
+        return false;
     }
 
     @Override
