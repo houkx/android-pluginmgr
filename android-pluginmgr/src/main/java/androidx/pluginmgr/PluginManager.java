@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import androidx.pluginmgr.delegate.DelegateActivityThread;
+import androidx.pluginmgr.delegate.DelegateResources;
 import androidx.pluginmgr.environment.CreateActivityData;
 import androidx.pluginmgr.environment.PlugInfo;
 import androidx.pluginmgr.environment.PluginClassLoader;
@@ -108,8 +109,9 @@ public class PluginManager implements FileFilter {
         this.context = context;
         File optimizedDexPath = context.getDir(Globals.PRIVATE_PLUGIN_OUTPUT_DIR_NAME, Context.MODE_PRIVATE);
         dexOutputPath = optimizedDexPath.getAbsolutePath();
-        dexInternalStoragePath = context
-                .getDir(Globals.PRIVATE_PLUGIN_ODEX_OUTPUT_DIR_NAME, Context.MODE_PRIVATE);
+        dexInternalStoragePath = context.getDir(
+                Globals.PRIVATE_PLUGIN_ODEX_OUTPUT_DIR_NAME, Context.MODE_PRIVATE
+        );
         DelegateActivityThread delegateActivityThread = DelegateActivityThread.getSingleton();
         Instrumentation originInstrumentation = delegateActivityThread.getInstrumentation();
         if (!(originInstrumentation instanceof PluginInstrumentation)) {
@@ -289,7 +291,7 @@ public class PluginManager implements FileFilter {
             Resources hotRes = context.getResources();
             Resources res = new Resources(am, hotRes.getDisplayMetrics(),
                     hotRes.getConfiguration());
-            info.setResources(res);
+            info.setResources(new DelegateResources(res, info.getPackageName(), context.getPackageName()));
         } catch (Exception e) {
             e.printStackTrace();
         }
