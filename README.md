@@ -78,6 +78,8 @@ you can start an activity from an uninstalled apk placed in sdcard,just like it 
     String pluginPackageName = (String) getSystemService("GetPluginPkgName");
     PackageInfo pluginPackageInfo = (PackageInfo) getSystemService("GetPluginPkgInfo");
     //... 破壳系统支持的操作详见 androidx/pluginmgr/Globals.java
+  ```
+  
 ## License
 ```java
 /*
