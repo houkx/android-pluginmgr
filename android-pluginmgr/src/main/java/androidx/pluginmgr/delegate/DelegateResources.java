@@ -40,10 +40,6 @@ public class DelegateResources extends Resources {
         this.mBase = base;
     }
 
-    public static Resources getSystem() {
-        return Resources.getSystem();
-    }
-
     @Override
     public CharSequence getText(int id) throws NotFoundException {
         return mBase.getText(id);
@@ -237,20 +233,6 @@ public class DelegateResources extends Resources {
         return mBase.obtainAttributes(set, attrs);
     }
 
-    @Override
-    public void updateConfiguration(Configuration config, DisplayMetrics metrics) {
-        mBase.updateConfiguration(config, metrics);
-    }
-
-    @Override
-    public DisplayMetrics getDisplayMetrics() {
-        return mBase.getDisplayMetrics();
-    }
-
-    @Override
-    public Configuration getConfiguration() {
-        return mBase.getConfiguration();
-    }
 
     @Override
     public int getIdentifier(String name, String defType, String defPackage) {
