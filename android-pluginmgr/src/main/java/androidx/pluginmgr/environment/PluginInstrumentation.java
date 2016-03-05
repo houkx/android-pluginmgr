@@ -212,6 +212,7 @@ public class PluginInstrumentation extends DelegateInstrumentation
                     ActivityInfo activityInfo = currentPlugin.findActivityByClassName(activityName);
                     intent.setClass(from, PluginManager.getSingleton().getActivitySelector().selectDynamicActivity(activityInfo));
                     intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
+                    intent.setExtrasClassLoader(currentPlugin.getClassLoader());
                 }
             }
         }
