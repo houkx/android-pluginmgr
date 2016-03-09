@@ -210,9 +210,11 @@ public class PluginInstrumentation extends DelegateInstrumentation
 				{
                     CreateActivityData createActivityData = new CreateActivityData(activityName, currentPlugin.getPackageName());
                     ActivityInfo activityInfo = currentPlugin.findActivityByClassName(activityName);
-                    intent.setClass(from, PluginManager.getSingleton().getActivitySelector().selectDynamicActivity(activityInfo));
-                    intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
-                    intent.setExtrasClassLoader(currentPlugin.getClassLoader());
+                    if (activityInfo != null) {
+                        intent.setClass(from, PluginManager.getSingleton().getActivitySelector().selectDynamicActivity(activityInfo));
+                        intent.putExtra(Globals.FLAG_ACTIVITY_FROM_PLUGIN, createActivityData);
+                        intent.setExtrasClassLoader(currentPlugin.getClassLoader());
+                    }
                 }
             }
         }

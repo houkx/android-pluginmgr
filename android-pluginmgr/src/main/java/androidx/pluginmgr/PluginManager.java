@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import androidx.pluginmgr.delegate.DelegateActivityThread;
-import androidx.pluginmgr.delegate.DelegateResources;
 import androidx.pluginmgr.environment.CreateActivityData;
 import androidx.pluginmgr.environment.PlugInfo;
 import androidx.pluginmgr.environment.PluginClassLoader;
@@ -83,6 +82,8 @@ public class PluginManager implements FileFilter {
      * 私有目录中存储插件的路径
      */
     private File dexInternalStoragePath;
+
+    private ClassLoader pluginParentClassLoader = ClassLoader.getSystemClassLoader().getParent();
 
     /**
      * Activity生命周期监听器
@@ -291,13 +292,13 @@ public class PluginManager implements FileFilter {
             Resources hotRes = context.getResources();
             Resources res = new Resources(am, hotRes.getDisplayMetrics(),
                     hotRes.getConfiguration());
-            info.setResources(new DelegateResources(res, info.getPackageName(), context.getPackageName()));
+            info.setResources(res);
         } catch (Exception e) {
             e.printStackTrace();
         }
         //Load  classLoader for Plugin
         PluginClassLoader pluginClassLoader = new PluginClassLoader(info, dexPath, dexOutputPath
-                , getPluginLibPath(info).getAbsolutePath(), ClassLoader.getSystemClassLoader().getParent());
+                , getPluginLibPath(info).getAbsolutePath(), pluginParentClassLoader);
         info.setClassLoader(pluginClassLoader);
         ApplicationInfo appInfo = info.getPackageInfo().applicationInfo;
         String appClassName = null;
@@ -321,6 +322,17 @@ public class PluginManager implements FileFilter {
         }
     }
 
+    public void setPluginParentClassLoader(ClassLoader parentClassLoader) {
+        if (parentClassLoader != null) {
+            this.pluginParentClassLoader = parentClassLoader;
+        }else {
+            this.pluginParentClassLoader = ClassLoader.getSystemClassLoader().getParent();
+        }
+    }
+
+    public ClassLoader getPluginParentClassLoader() {
+        return pluginParentClassLoader;
+    }
 
     /**
      * 构造插件的Application
