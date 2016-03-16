@@ -294,18 +294,15 @@ public class PluginManager implements FileFilter {
                     hotRes.getConfiguration());
             info.setResources(res);
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Unable to create Resources&Assets for "
+                    + info.getPackageName() + " : " + e.getMessage());
         }
         //Load  classLoader for Plugin
         PluginClassLoader pluginClassLoader = new PluginClassLoader(info, dexPath, dexOutputPath
                 , getPluginLibPath(info).getAbsolutePath(), pluginParentClassLoader);
         info.setClassLoader(pluginClassLoader);
         ApplicationInfo appInfo = info.getPackageInfo().applicationInfo;
-        String appClassName = null;
-        if (appInfo != null) {
-            appClassName = appInfo.name;
-        }
-        Application app = makeApplication(pluginClassLoader, appClassName);
+        Application app = makeApplication(info, appInfo);
         attachBaseContext(info, app);
         info.setApplication(app);
         Trace.store("Build pluginInfo => " + info);
@@ -322,6 +319,11 @@ public class PluginManager implements FileFilter {
         }
     }
 
+
+    /**
+     * 插件中可能需要公用某些依赖库以减小体积，当你有这个需求的时候，请使用本API.
+     * @param parentClassLoader classLoader
+     */
     public void setPluginParentClassLoader(ClassLoader parentClassLoader) {
         if (parentClassLoader != null) {
             this.pluginParentClassLoader = parentClassLoader;
@@ -337,19 +339,23 @@ public class PluginManager implements FileFilter {
     /**
      * 构造插件的Application
      *
-     * @param pluginClassLoader 类加载器
-     * @param appClassName      类名
+     * @param plugInfo 插件信息
+     * @param appInfo 插件ApplicationInfo
      * @return 插件App
      */
-    private Application makeApplication(PluginClassLoader pluginClassLoader, String appClassName) {
-        if (appClassName != null) {
-            try {
-                return (Application) pluginClassLoader.loadClass(appClassName).newInstance();
-            } catch (Throwable ignored) {
-            }
+    private Application makeApplication(PlugInfo plugInfo, ApplicationInfo appInfo) {
+        String appClassName = appInfo.className;
+        if (appClassName == null) {
+            //Default Application
+            appClassName = Application.class.getName();
         }
-        //default application
-        return new Application();
+            try {
+                return (Application) plugInfo.getClassLoader().loadClass(appClassName).newInstance();
+            } catch (Throwable e) {
+                throw new RuntimeException("Unable to create Application for "
+                        + plugInfo.getPackageName() + ": "
+                        + e.getMessage());
+            }
     }
 
 

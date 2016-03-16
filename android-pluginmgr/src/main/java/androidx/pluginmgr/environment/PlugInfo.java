@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import androidx.pluginmgr.utils.Trace;
+
 /**
  * 插件Bean
  * 
@@ -289,11 +291,12 @@ public class PlugInfo implements Serializable {
 	}
 
 	public boolean isApplicationCreated() {
-		return application != null && isApplicationOnCreated;
+        //Fix at 2016/3/16
+		return application != null || isApplicationOnCreated;
 	}
 
 	public void ensureApplicationCreated() {
-		if (application != null && !isApplicationOnCreated) {
+		if (isApplicationCreated()) {
 			synchronized (this) {
 				try {
 					application.onCreate();
@@ -305,6 +308,7 @@ public class PlugInfo implements Serializable {
 									application.registerReceiver(broadcastReceiver, resolveInfo.filter);
 								} catch (Throwable e) {
 									e.printStackTrace();
+                                    Trace.store("Unable to create Receiver : " + resolveInfo.activityInfo.name);
 								}
 							}
 						}

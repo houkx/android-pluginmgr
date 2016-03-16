@@ -21,6 +21,8 @@ import androidx.pluginmgr.Globals;
 import androidx.pluginmgr.PluginManager;
 import androidx.pluginmgr.delegate.DelegateInstrumentation;
 import androidx.pluginmgr.reflect.Reflect;
+import androidx.pluginmgr.reflect.ReflectException;
+import androidx.pluginmgr.utils.Trace;
 import androidx.pluginmgr.verify.PluginNotFoundException;
 import androidx.pluginmgr.widget.LayoutInflaterWrapper;
 
@@ -97,9 +99,11 @@ public class PluginInstrumentation extends DelegateInstrumentation
                 Field field = ContextWrapper.class.getDeclaredField("mBase");
                 field.setAccessible(true);
                 field.set(activity, pluginContext);
-
-				Reflect.on(activity).set("mApplication", currentPlugin.getApplication());
-
+				try {
+                    Reflect.on(activity).set("mApplication", currentPlugin.getApplication());
+                }catch (ReflectException e) {
+                    Trace.store("Application not inject success into : " + activity);
+                }
             }
 			catch (Throwable e)
 			{
